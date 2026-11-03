@@ -1,0 +1,48 @@
+# --- Python / Jupyter ---
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# --- Srodowiska ---
+.venv/
+venv/
+.conda/
+
+# --- Dane surowe i duze pliki ---
+# (Data/ - dla README patrz wyjatek nizej)
+Data/*
+!Data/README.md
+*.edf
+*.bdf
+*.fif
+*.set
+*.fdt
+*.vhdr
+*.vmrk
+*.eeg
+*.asc
+*.mp4
+*.avi
+*.wav
+*.npy
+*.npz
+*.h5
+*.pkl
+*.parquet
+
+# --- Wyniki i cache modeli ---
+outputs/
+figures/*.png
+.cache/
+embeddings/
+
+# --- Sekrety ---
+.env
+*.key
+
+# --- Edytory / system ---
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store

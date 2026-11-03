@@ -1,0 +1,15 @@
+# Core: data + visualization (ROAMM_Viz.ipynb)
+numpy
+pandas
+scipy
+matplotlib
+seaborn
+statsmodels         # wymagane przy imporcie analysisFunctions.py
+pyqt5               # %matplotlib qt (okno z suwakiem)
+tqdm
+pyarrow
+
+# Jupyter in VS Code
+ipykernel
+ipywidgets
+ipympl              # %matplotlib widget -> zoom/pan myszką w notebooku

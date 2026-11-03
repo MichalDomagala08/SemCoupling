@@ -1,0 +1,8 @@
+# Optional: NLP stack used by Analysis_Codes/ (storyDataExtraction.py, behavDataExtraction.py)
+# Heavy (~2-3 GB with torch). Install only when you need embeddings.
+torch
+sentence-transformers
+gensim
+spacy
+fasttext-wheel      # 'fasttext' does not build on Windows without MSVC; this is the prebuilt wheel
+morfeusz2           # Polish morphological analyser; if pip fails, see http://morfeusz.sgjp.pl/download/
