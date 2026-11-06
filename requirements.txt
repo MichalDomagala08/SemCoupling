@@ -1,15 +1,15 @@
 # Core: data + visualization (ROAMM_Viz.ipynb)
 numpy
-pandas
+pandas>=3.0           # ROAMM .pkl files were saved with pandas 3 (pandas 2 cannot read them)
 scipy
 matplotlib
 seaborn
-statsmodels         # wymagane przy imporcie analysisFunctions.py
-pyqt5               # %matplotlib qt (okno z suwakiem)
+statsmodels         # needed when importing analysisFunctions.py
+pyqt5               # %matplotlib qt (interactive window with a slider; optional)
 tqdm
 pyarrow
 
 # Jupyter in VS Code
 ipykernel
 ipywidgets
-ipympl              # %matplotlib widget -> zoom/pan myszką w notebooku
+ipympl              # %matplotlib widget -> zoom/pan with the mouse in notebooks

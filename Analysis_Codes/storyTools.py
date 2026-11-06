@@ -100,6 +100,7 @@ def cleanFragment(text):
     (punctuation is removed from the tokens)
     """
     from nltk import word_tokenize
+    ensure_nltk()
     words = word_tokenize(text, language='polish')
     return [re.sub(r'[^\w\s]', '', t) for t in words if re.sub(r'[^\w\s]', '', t)]
 
@@ -116,8 +117,18 @@ def splitStoryEntity(cont):
 # 3. Tokenisation / lemmatisation
 # =============================================================================
 
-STOPWORDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..',
-                              'Data', 'Strategic_MW_Experiment', 'polish.stopwords.txt')
+# Shipped with the code (Data/ is not in git)
+STOPWORDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'polish.stopwords.txt')
+
+
+def ensure_nltk():
+    """Downloads the NLTK tokenizer models (punkt, punkt_tab) if they are missing. Runs once."""
+    import nltk
+    for res in ('punkt', 'punkt_tab'):
+        try:
+            nltk.data.find(f'tokenizers/{res}')
+        except LookupError:
+            nltk.download(res, quiet=True)
 _STOPWORDS_CACHE = {}
 PUNCT = {',', '.', ':', ';', '?', '!', ')', '(', '...', '„', '”', '—', '-'}
 
@@ -137,6 +148,7 @@ def preprocess(text, additonal_stopwords=None, stopwords_path=STOPWORDS_PATH):
         then filtering out non-word characters.
     """
     from nltk.tokenize import word_tokenize
+    ensure_nltk()
     tokens = word_tokenize(text, language='polish')
     sw = set(load_stopwords(stopwords_path))
     if isinstance(additonal_stopwords, (list, set)):
@@ -431,7 +443,7 @@ def history_viewer(df, errors_dict=None,
     # The content is NOT a widget: a plain display(HTML) with a display_id, replaced via .update().
     # Output/HTML widgets can render twice in VS Code.
     handle = None
-    subj_dd = widgets.Dropdown(options=['(wszyscy)'] + sorted(df['Subject'].unique()), description='Badany:')
+    subj_dd = widgets.Dropdown(options=['(all)'] + sorted(df['Subject'].unique()), description='Subject:')
 
     def box(title, body, bg):
         return (f'<div style="margin-top:12px;padding:10px;background:{bg};color:#1a1a1a;border-radius:8px;">'
@@ -440,7 +452,7 @@ def history_viewer(df, errors_dict=None,
     def render():
         rows, i = state['rows'], state['i']
         if rows.empty:
-            handle.update(HTML('<i>brak wierszy</i>'))
+            handle.update(HTML('<i>no rows</i>'))
             return
         r = rows.iloc[i]
         meta = ' | '.join(f'{c}: <b>{r[c]}</b>' for c in extra_cols if c in rows and pd.notna(r[c]))
@@ -448,12 +460,12 @@ def history_viewer(df, errors_dict=None,
         html = (f'<div style="max-width:950px;font-family:Arial;line-height:1.55;">'
                 f'<h3>{r["Subject"]}{trial} | {r["Fragment"]}</h3><div>{meta}</div>')
         if 'StoryFrag' in rows and pd.notna(r['StoryFrag']):
-            html += box('Fragment historii:', escape(str(r['StoryFrag'])), '#eef3fb')
-        html += box('Wypowiedź badanego:', escape(str(r.get('Utterance', ''))), '#f5f5f5')
+            html += box('Story fragment:', escape(str(r['StoryFrag'])), '#eef3fb')
+        html += box('Participant recall:', escape(str(r.get('Utterance', ''))), '#f5f5f5')
         if 'Lemmas' in rows:
-            html += box('Lematy:', escape(', '.join(map(str, _as_list(r['Lemmas'])))), '#fbf7ee')
-        html += (f'<hr><div>Rekord {i + 1} z {len(rows)} | '
-                 f'błąd zaznaczony: {errors_dict.get(r["Subject"], {}).get(r["Fragment"], False)}</div></div>')
+            html += box('Lemmas:', escape(', '.join(map(str, _as_list(r['Lemmas'])))), '#fbf7ee')
+        html += (f'<hr><div>Record {i + 1} of {len(rows)} | '
+                 f'error marked: {errors_dict.get(r["Subject"], {}).get(r["Fragment"], False)}</div></div>')
         handle.update(HTML(html))
 
     def step(d):
@@ -462,7 +474,7 @@ def history_viewer(df, errors_dict=None,
 
     def on_subject(change):
         s = change['new']
-        state['rows'] = df if s == '(wszyscy)' else df[df['Subject'] == s].reset_index(drop=True)
+        state['rows'] = df if s == '(all)' else df[df['Subject'] == s].reset_index(drop=True)
         state['i'] = 0
         render()
 
@@ -472,9 +484,9 @@ def history_viewer(df, errors_dict=None,
         d[r['Fragment']] = not d.get(r['Fragment'], False)
         render()
 
-    b_prev = widgets.Button(description='⬅ Poprzedni'); b_prev.on_click(lambda _: step(-1))
-    b_next = widgets.Button(description='Następny ➡'); b_next.on_click(lambda _: step(+1))
-    b_err = widgets.Button(description='Błąd w tekście', button_style='danger'); b_err.on_click(mark_error)
+    b_prev = widgets.Button(description='⬅ Previous'); b_prev.on_click(lambda _: step(-1))
+    b_next = widgets.Button(description='Next ➡'); b_next.on_click(lambda _: step(+1))
+    b_err = widgets.Button(description='Mark error', button_style='danger'); b_err.on_click(mark_error)
     subj_dd.observe(on_subject, names='value')
 
     display(widgets.HBox([subj_dd, b_prev, b_next, b_err]))
@@ -502,31 +514,31 @@ def utterance_report(row, morf=None, sbert=None):
     print('=' * 70)
     print(f"{row['Subject']} | trial {row['TrialNum']} | {row['Fragment']} | MW = {row['MW']}")
     print('=' * 70)
-    print('WYPOWIEDŹ:', utt)
+    print('RECALL:', utt)
     print('-' * 70)
 
     # 1) Length
     m['n_words'] = n_words
     m['n_lemmas'] = len(lemmas)
-    print(f"Liczba słów / lematów:     {n_words} / {len(lemmas)}")
+    print(f"Words / lemmas:            {n_words} / {len(lemmas)}")
 
     # 2) Lexical diversity
     m['lexdiv'] = lexical_diversity(lemmas)
     m['lexdiv_story'] = lexical_diversity_storywise(lemmas, story_lemmas)
-    print(f"Lexical diversity:         {m['lexdiv']:.2f}   (unikalne lematy / wszystkie; 1 = bez powtórzeń)")
-    print(f"Lexical div. vs historia:  {m['lexdiv_story']:.2f}   (unikalne lematy wypowiedzi / unikalne lematy fragmentu)")
+    print(f"Lexical diversity:         {m['lexdiv']:.2f}   (unique lemmas / all lemmas; 1 = no repetitions)")
+    print(f"Lexical div. vs story:     {m['lexdiv_story']:.2f}   (unique recall lemmas / unique story-fragment lemmas)")
 
     # 3) Autobiographical references
     if morf is not None:
         verbs, prons = autobiographyAnalysis(utt, morf)
         m['autobio'] = len(verbs) + len(prons)
-        print(f"Odniesienia do siebie:     {m['autobio']}   (czasowniki 1 os.: {verbs}, zaimki: {prons})")
+        print(f"Self-references:           {m['autobio']}   (1st-person verbs: {verbs}, pronouns: {prons})")
 
     # 4) Semantic coupling (cosine similarity between utterance sentences and story-fragment sentences)
     if sbert is not None:
         m['cos_sim'] = bertSentenceCosineSim(_as_list(row['StorySentences']), _as_list(row['Sentences']),
                                              sbert, mode=0, aggregation='max')
-        print(f"Cosine similarity (sBERT): {m['cos_sim']:.2f}   (wyżej = bliżej historii, niżej = decoupling)")
+        print(f"Cosine similarity (sBERT): {m['cos_sim']:.2f}   (higher = closer to the story, lower = decoupling)")
 
     print('=' * 70)
     return m

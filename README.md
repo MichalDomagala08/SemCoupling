@@ -36,6 +36,7 @@ SemCoupling/
 ├── requirements.txt                       ← core stack (data, plotting, Jupyter)
 ├── requirements-nlp.txt                   ← optional NLP stack (torch, SBERT, gensim, spaCy, Morfeusz2)
 ├── setup_env.ps1                          ← environment setup (Windows)
+├── setup_env.sh                           ← environment setup (macOS / Linux)
 │
 ├── Strategic_MW_Viz.ipynb                 ← start here: our story-listening dataset
 ├── ROAMM_Viz.ipynb                        ← start here: ROAMM (EEG + eye tracking during reading)
@@ -44,7 +45,8 @@ SemCoupling/
 │   ├── analysisFunctions.py               ← eye-tracking plots and preprocessing helpers
 │   ├── behavDataExtraction.py             ← EyeLink .asc → trial-wise behavioral and ocular tables
 │   ├── storyDataExtraction.py             ← thought recalls + story text → lexical and semantic metrics
-│   └── storyTools.py                      ← NLP tools: lemmatization, lexical diversity, SBERT similarity, WMD
+│   ├── storyTools.py                      ← NLP tools: lemmatization, lexical diversity, SBERT similarity, WMD, recall viewer
+│   └── polish.stopwords.txt               ← Polish stopword list used by storyTools
 │
 └── Data/                                  ← not in git (see below)
     ├── Strategic_MW_Experiment/
@@ -52,8 +54,7 @@ SemCoupling/
     │   ├── gaze_raw.csv.gz, gaze_preproc.csv.gz
     │   ├── fixations.csv.gz, saccades.csv.gz, blinks.csv.gz
     │   ├── audioFiles/ (expAudio/segm_*.wav, practice/)
-    │   ├── Stories/
-    │   └── polish.stopwords.txt
+    │   └── Stories/
     └── ROAMM/
         ├── sub-XXXXX/*_mldata.pkl
         ├── stimuli/ (*_coordinates.csv, ROAMM_README.md)
@@ -62,7 +63,7 @@ SemCoupling/
 
 ## Data
 
-`Data/` is excluded from git (size and privacy). Place the files as shown above.
+`Data/` is empty in git (size and privacy); only `Data/README.md` is tracked. Place the files as shown above and in `Data/README.md`. In `Strategic_MW_Viz.ipynb`, `ONE_SUBJECT` loads a single participant (~0.06 GB RAM instead of ~1 GB).
 
 **Strategic mind-wandering experiment** (ours). 58 participants (2 × 29) listened to a Polish story about two protagonists, split into 40 fragments of ~45 s. After each fragment: a thought probe (0–100, "How distracted are you from the story?") and a free recall of thoughts. EyeLink 1000, 500 Hz, central fixation.
 
@@ -75,17 +76,29 @@ All tables share the keys `Experiment, Subject, TrialNum, Fragment, Hero`. The t
 
 ## Getting started
 
+Requires Python ≥ 3.11 (pandas 3 is needed to read the ROAMM `.pkl` files).
+
+**Windows**
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup_env.ps1        # core
-powershell -ExecutionPolicy Bypass -File .\setup_env.ps1 -Nlp   # + NLP stack (~2–3 GB)
+powershell -ExecutionPolicy Bypass -File .\setup_env.ps1 -Nlp   # + NLP stack (~2–3 GB) + NLTK tokenizer models
 .\.venv\Scripts\Activate.ps1
 ```
+
+**macOS / Linux**
+```bash
+bash setup_env.sh          # core
+bash setup_env.sh --nlp    # + NLP stack (~2–3 GB) + NLTK tokenizer models
+source .venv/bin/activate
+```
+
+The NLP stack downloads the NLTK tokenizer models (`punkt`, `punkt_tab`); `storyTools` also fetches them automatically if missing. The sBERT model (~0.5 GB) is downloaded the first time the recall metrics are run.
 
 Then open a notebook with the kernel **Python (SemCoupling)**.
 
 ## Known gaps
 
-- `behavDataExtraction.py` and `storyDataExtraction.py` still point to the original paths (`analysis/RawData`) and need to be redirected to `Data/Strategic_MW_Experiment/`.
+- `behavDataExtraction.py` and `storyDataExtraction.py` are included for reference only: they show how the tables were built from the raw EyeLink files and recalls, but they point to the original paths and need helper functions and models (fastText `w2v_pl.bin`) that are not part of this repository.
 - There is no feature-extraction or modeling module yet. **That is the core of the hackathon.**
 
 ## Contact
