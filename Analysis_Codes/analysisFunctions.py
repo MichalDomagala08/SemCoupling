@@ -289,3 +289,12 @@ def deg2pix(x,gazeCoords=[0,0,1919,1079]):
     :param x: Description
     :param gazeCoords: Description
     """
+
+    return 92*np.tan(np.deg2rad(x)) * np.mean([gazeCoords[2]/53,gazeCoords[3]/30])
+
+
+def pix2deg(x,gazeCoords=[0,0,1919,1079]):
+    """
+    Recalculates Pixels to Degrees of Visual Angle based on screen Coords
+    """
+    return np.rad2deg(np.arctan(x/(92 * np.mean([gazeCoords[2]/53,gazeCoords[3]/30]))))
