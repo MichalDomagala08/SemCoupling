@@ -200,7 +200,7 @@ function section(id, title, lead, wniosek) {
     [m.n_recalls.toLocaleString('pl'), 'relacji myśli', `${m.exp.Exp1_Cued.recalls} w Exp1, ${m.exp.Exp2_Preference.recalls} w Exp2`],
     [fmt(m.exp.Exp1_Cued.mean_mw, 0) + ' / ' + fmt(m.exp.Exp2_Preference.mean_mw, 0), 'średnie MW (0–99)', 'Exp1 / Exp2'],
   ];
-  if (EYE) tiles.push([EYE.n_trials.toLocaleString('pl'), 'triali z pupilą', `${EYE.n_subjects} osób, 100 Hz`]);
+  if (EYE) tiles.push([EYE.n_trials.toLocaleString('pl'), 'triali z danymi źrenicy', `${EYE.n_subjects} osób, 100 Hz`]);
   tiles.forEach(([v, l, d]) => { const e = t.append('div').attr('class', 'tile'); e.append('div').attr('class', 'v').text(v); e.append('div').attr('class', 'l').text(l); e.append('div').attr('class', 'd').text(d); });
 }
 
@@ -210,7 +210,7 @@ function section(id, title, lead, wniosek) {
     'Etykieta stanu jest rzadka: jedna liczba i jedna wypowiedź na ~45 s, a sygnał z oka jest ciągły. Cały problem hackathonu to przerzucić most między tą rzadką etykietą a ciągłym sygnałem, i te dane dają do tego dwa „uchwyty”: instrukcję (Exp1) i ocenę ciekawości (Exp2).');
   const c = card(grid, 'Jeden trial', null, { wide: true });
   const tl = c.append('div').attr('class', 'timeline');
-  tl.append('div').html('<b>1. Słuchanie fragmentu</b><small>~45 s, audio TTS, wzrok na krzyżu fiksacyjnym. Tu zbierana jest pupila, mrugnięcia, sakady.</small>');
+  tl.append('div').html('<b>1. Słuchanie fragmentu</b><small>~45 s, audio TTS, wzrok na krzyżu fiksacyjnym. Tu rejestrowane są źrenica, mrugnięcia i sakady.</small>');
   tl.append('div').html('<b>2. Sonda MW</b><small>„W jakim stopniu byłeś rozproszony?” suwak 0–99.</small>');
   tl.append('div').html('<b>3. Relacja myśli</b><small>Ustnie, max 25 s: „Opisz przebieg swoich myśli od ostatniej przerwy”. Transkrypcja Whisperem, lematyzacja Morfeuszem.</small>');
   c.append('div').attr('class', 'muted').text('Kolejność 40 fragmentów (K = Karolina, J = Janek):');
@@ -462,19 +462,19 @@ function pairedDots(c, pairs, labels, cols, ylab) {
 
 // ===== 6. eye
 if (EYE) {
-  const grid = section('eye', '6 · Oko: pupila i mrugnięcia', 'Cechy z <code>gaze_preproc</code> (100 Hz, lewe oko, prawe jako zapas) policzone per trial i z-standaryzowane wewnątrz osoby. Trial z ponad 50 % brakujących próbek pupili jest pominięty w statystykach pupili.',
-    'Cechy oka uśrednione z całego fragmentu są słabe: pupila i mrugnięcia nie rozróżniają MW, a rozrzut spojrzenia tylko lekko (r = 0,09) i dopiero przy MW powyżej 50. Jeśli sygnał jest, siedzi w dynamice wewnątrz fragmentu, nie w średniej z 45 s. Detekcja ciągła musi więc pracować na oknach kilkusekundowych, a nie na trialu.');
-  const names = { pupil_mean: 'średnica pupili (śr.)', pupil_sd: 'zmienność pupili (SD)', gaze_sd: 'rozrzut spojrzenia (SD px)', blink_rate: 'mrugnięcia / min' };
+  const grid = section('eye', '6 · Oko: źrenica i mrugnięcia', 'Cechy z <code>gaze_preproc</code> (100 Hz, lewe oko, prawe jako zapas) policzone per trial i z-standaryzowane wewnątrz osoby. Trial z ponad 50 % brakujących próbek źrenicy jest pominięty w statystykach źrenicy.',
+    'Cechy oka uśrednione z całego fragmentu są słabe: źrenica i mrugnięcia nie rozróżniają MW, a rozrzut spojrzenia tylko lekko (r = 0,09) i dopiero przy MW powyżej 50. Jeśli sygnał jest, siedzi w dynamice wewnątrz fragmentu, nie w średniej z 45 s. Detekcja ciągła musi więc pracować na oknach kilkusekundowych, a nie na trialu.');
+  const names = { pupil_mean: 'średnica źrenicy (śr.)', pupil_sd: 'zmienność źrenicy (SD)', gaze_sd: 'rozrzut spojrzenia (SD px)', blink_rate: 'mrugnięcia / min' };
   // timecourse
   const tc = EYE.timecourse;
-  const c = card(grid, 'Przebieg pupili w trialu: wysokie vs niskie MW', `Średnia z-pupila (1 Hz) w trialach z MW z > 0,5 (n = ${tc.high.n_trials}) i z < −0,5 (n = ${tc.low.n_trials}); pasmo ±1 SEM. Sekunda 0 = start fragmentu.`, { wide: true });
+  const c = card(grid, 'Przebieg źrenicy w trialu: wysokie vs niskie MW', `Średnica źrenicy w z (1 Hz) w trialach z MW z > 0,5 (n = ${tc.high.n_trials}) i z < −0,5 (n = ${tc.low.n_trials}); pasmo ±1 SEM. Sekunda 0 = start fragmentu.`, { wide: true });
   legend(c, [{ t: 'niskie MW (skupienie)', c: '--s1', line: true }, { t: 'wysokie MW (odpływanie)', c: '--s8', line: true }, { t: 'średnie', c: '--muted', line: true }]);
   const f = frame(c.node(), 1160, 280, { l: 48, t: 10, r: 16, b: 44 });
   const n = tc.high.mean.length;
   const x = d3.scaleLinear().domain([0, n - 1]).range([0, f.w]);
   const all = [...tc.high.mean, ...tc.low.mean, ...tc.mid.mean].filter(v => v != null);
   const y = d3.scaleLinear().domain([d3.min(all) - 0.15, d3.max(all) + 0.15]).nice().range([f.h, 0]);
-  yGrid(f.g, y, f.w, 5); xAxis(f.g, x, f.h, d3.range(0, n, 5)); axisTitle(f.g, 'sekunda fragmentu', f.w, f.h, 'x'); axisTitle(f.g, 'pupila (z wewnątrz osoby)', f.w, f.h, 'y');
+  yGrid(f.g, y, f.w, 5); xAxis(f.g, x, f.h, d3.range(0, n, 5)); axisTitle(f.g, 'sekunda fragmentu', f.w, f.h, 'x'); axisTitle(f.g, 'źrenica (z wewnątrz osoby)', f.w, f.h, 'y');
   f.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f.w).attr('y1', y(0)).attr('y2', y(0)).attr('stroke-dasharray', null);
   for (const [k, col, wdt] of [['mid', '--muted', 1.5], ['low', '--s1', 2], ['high', '--s8', 2]]) {
     const pts = tc[k].mean.map((v, i) => ({ i, v, s: tc[k].sem[i] })).filter(p => p.v != null);
@@ -484,7 +484,7 @@ if (EYE) {
   const cross = f.g.append('line').attr('class', 'axis-line').attr('y1', 0).attr('y2', f.h).style('display', 'none');
   f.g.append('rect').attr('width', f.w).attr('height', f.h).attr('fill', 'transparent').on('mousemove', ev => { const i = Math.round(x.invert(d3.pointer(ev)[0])); if (i < 0 || i >= n) return; cross.style('display', null).attr('x1', x(i)).attr('x2', x(i)); showTip(`<b>sekunda ${i}</b><br>niskie MW: ${fmt(tc.low.mean[i], 2)} ± ${fmt(tc.low.sem[i], 2)}<br>średnie: ${fmt(tc.mid.mean[i], 2)}<br>wysokie MW: ${fmt(tc.high.mean[i], 2)} ± ${fmt(tc.high.sem[i], 2)}`, ev); }).on('mouseleave', () => { cross.style('display', 'none'); hideTip(); });
   const diff = d3.mean(d3.range(5, Math.min(45, n)), i => (tc.high.mean[i] ?? 0) - (tc.low.mean[i] ?? 0));
-  finding(c, `Średnia różnica wysokie − niskie w sekundach 5–45: <b>${fmt(diff, 2)} SD</b>. ${Math.abs(diff) < 0.1 ? 'Mała; pupila per trial słabo rozróżnia stany, to zgodne z literaturą (efekty rzędu 0,1–0,2 SD).' : 'Widoczny efekt kierunkowy.'} Uwaga: to porównanie między trialami tej samej osoby; dryf pupili w sesji może się mieszać z efektem czasu na zadaniu.`);
+  finding(c, `Średnia różnica wysokie − niskie w sekundach 5–45: <b>${fmt(diff, 2)} SD</b>. ${Math.abs(diff) < 0.1 ? 'Mała; źrenica per trial słabo rozróżnia stany, to zgodne z literaturą (efekty rzędu 0,1–0,2 SD).' : 'Widoczny efekt kierunkowy.'} Uwaga: to porównanie między trialami tej samej osoby; dryf źrenicy w sesji może się mieszać z efektem czasu na zadaniu.`);
   tableView(c, d3.range(n).map(i => ({ s: i, lo: tc.low.mean[i], mid: tc.mid.mean[i], hi: tc.high.mean[i] })), [{ key: 's', label: 'sekunda' }, { key: 'lo', label: 'niskie MW' }, { key: 'mid', label: 'średnie' }, { key: 'hi', label: 'wysokie MW' }]);
 
   // features by MW bin
@@ -506,7 +506,7 @@ if (EYE) {
     const tk = EYE.tracking[k];
     const verdict = {
       pupil_mean: 'Płasko do MW 75; spadek w przedziale 76–99 opiera się na 91 trialach i nie ma go w korelacji, więc nie traktuję go jako efektu.',
-      pupil_sd: 'Brak zależności w żadnym przedziale; zmienność pupili z całego trialu nie niesie informacji o MW.',
+      pupil_sd: 'Brak zależności w żadnym przedziale; zmienność źrenicy z całego trialu nie niesie informacji o MW.',
       gaze_sd: 'Jedyna cecha z kierunkiem: przy MW powyżej 50 wzrok wyraźnie bardziej „ucieka” od krzyża, i tak samo w fragmentach UNTRACKED. Słaba, ale spójna z hipotezą odsprzężenia.',
       blink_rate: 'Brak wyraźnego kierunku; lekki wzrost przy 51–75 nie utrzymuje się w najwyższym przedziale.',
     }[k];
@@ -514,7 +514,7 @@ if (EYE) {
     tableView(c2, w.per_subject, [{ key: 'id', label: 'ID' }, { key: 'r', label: 'r wewnątrz osoby' }]);
   }
   // missing data
-  const c3 = card(grid, 'Braki pupili per osoba', 'Udział próbek bez pupili (po preprocessingu). Zgodne z opisem danych: MAWA1105 ~60 %, MAPO1405 ~44 %.');
+  const c3 = card(grid, 'Braki danych źrenicy per osoba', 'Udział próbek bez pomiaru źrenicy (po preprocessingu). Zgodne z opisem danych: MAWA1105 ~60 %, MAPO1405 ~44 %.');
   const ms = EYE.missing_by_subject;
   const f3 = frame(c3.node(), 560, 220, { l: 44, t: 8, r: 8, b: 30 });
   const x3 = d3.scaleBand().domain(ms.map(s => s.id)).range([0, f3.w]).paddingInner(0.2);
@@ -522,14 +522,14 @@ if (EYE) {
   yGrid(f3.g, y3, f3.w, 4); f3.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f3.w).attr('y1', f3.h).attr('y2', f3.h);
   axisTitle(f3.g, 'osoby, od największych braków', f3.w, f3.h, 'x'); axisTitle(f3.g, 'udział braków', f3.w, f3.h, 'y');
   hover(f3.g.append('g').selectAll('rect').data(ms).join('rect').attr('x', s => x3(s.id)).attr('y', s => y3(s.missing)).attr('width', x3.bandwidth()).attr('height', s => f3.h - y3(s.missing)).attr('rx', 2).attr('fill', s => css(EXP[s.exp].c)), s => `<b>${s.id}</b> · ${EXP[s.exp].name}<br>braki: ${pct(s.missing)}`);
-  finding(c3, `<b>${ms.filter(s => s.missing > 0.25).length} osób ma ponad 25 % braków</b>, reszta poniżej 10 %. Do modelu na pupili te osoby trzeba wykluczyć albo ważyć; braki idą głównie z mrugnięć dłuższych niż 500 ms i z utraty śledzenia, nie z preprocessingu.`);
+  finding(c3, `<b>${ms.filter(s => s.missing > 0.25).length} osób ma ponad 25 % braków</b>, reszta poniżej 10 %. Do modelu na źrenicy te osoby trzeba wykluczyć albo ważyć; braki idą głównie z mrugnięć dłuższych niż 500 ms i z utraty śledzenia, nie z preprocessingu.`);
   tableView(c3, ms, [{ key: 'id', label: 'ID' }, { key: 'exp', label: 'Exp' }, { key: 'missing', label: 'braki', f: pct }]);
 }
 
 // ===== 7. trial viewer
 {
-  const grid = section('viewer', '7 · Podgląd osoby: 40 triali', EYE ? 'Wybierz osobę i trial: pupila (1 Hz, surowe jednostki EyeLink), mrugnięcia (czerwone kreski), tekst fragmentu, relacja i sonda.' : 'Wybierz osobę: jej 40 sond MW, teksty i relacje.',
-    'Do oglądania pojedynczych przypadków. Osoby z dużymi skokami MW w sesji (np. DOKL1005, JAJA2108, JUBE1005) to najlepsi kandydaci, żeby sprawdzić gołym okiem, czy pupila lub mrugnięcia zmieniają się razem z sondą, zanim ktoś zbuduje na tym model.');
+  const grid = section('viewer', '7 · Podgląd osoby: 40 triali', EYE ? 'Wybierz osobę i trial: źrenica (1 Hz, surowe jednostki EyeLink), mrugnięcia (czerwone kreski), tekst fragmentu, relacja i sonda.' : 'Wybierz osobę: jej 40 sond MW, teksty i relacje.',
+    'Do oglądania pojedynczych przypadków. Osoby z dużymi skokami MW w sesji (np. DOKL1005, JAJA2108, JUBE1005) to najlepsi kandydaci, żeby sprawdzić gołym okiem, czy źrenica lub mrugnięcia zmieniają się razem z sondą, zanim ktoś zbuduje na tym model.');
   const wrap = d3.select(grid).append('div').attr('class', 'card').style('grid-column', '1 / -1');
   const filt = wrap.append('div').attr('class', 'filters');
   filt.append('label').html('Osoba <select id="vSub"></select>');
@@ -561,10 +561,10 @@ if (EYE) {
     pupRow.html('');
     if (EYE) {
       const key = `${sid}|${t}`, p = EYE.pupil_1hz[key], bl = EYE.blinks_1[key] || [], tf = EYE.trial_feats[key];
-      pupRow.append('h3').html(`Pupila, trial ${t}${tf ? ` <span class="pill">śr. ${tf.pm ?? '–'} (z = ${tf.pz ?? '–'})</span><span class="pill">braki ${pct(tf.miss)}</span><span class="pill">mrugnięć/min ${tf.br}</span><span class="pill">rozrzut spojrzenia ${tf.gsd} px</span>` : ''}`);
-      if (!p || p.every(v => v == null)) { pupRow.append('div').attr('class', 'muted').text('Brak danych pupili dla tego trialu.'); }
+      pupRow.append('h3').html(`Źrenica, trial ${t}${tf ? ` <span class="pill">śr. ${tf.pm ?? '–'} (z = ${tf.pz ?? '–'})</span><span class="pill">braki ${pct(tf.miss)}</span><span class="pill">mrugnięć/min ${tf.br}</span><span class="pill">rozrzut spojrzenia ${tf.gsd} px</span>` : ''}`);
+      if (!p || p.every(v => v == null)) { pupRow.append('div').attr('class', 'muted').text('Brak danych źrenicy dla tego trialu.'); }
       else {
-        legend(pupRow, [{ t: 'pupila (lewe oko, a.u.)', c: '--s1', line: true }, { t: 'mrugnięcie', c: '--s8' }]);
+        legend(pupRow, [{ t: 'źrenica (lewe oko, a.u.)', c: '--s1', line: true }, { t: 'mrugnięcie', c: '--s8' }]);
         const f2 = frame(pupRow.node(), 1160, 200, { l: 56, t: 6, r: 8, b: 36 });
         const x2 = d3.scaleLinear().domain([0, p.length - 1]).range([0, f2.w]);
         const vals = p.filter(v => v != null);
@@ -573,7 +573,7 @@ if (EYE) {
         f2.g.append('g').selectAll('rect').data(bl).join('rect').attr('x', b => x2(b[0])).attr('y', 0).attr('width', b => Math.max(1.5, x2(b[0] + b[1]) - x2(b[0]))).attr('height', f2.h).attr('fill', css('--s8')).attr('opacity', .35);
         f2.g.append('path').datum(p.map((v, i) => ({ i, v }))).attr('fill', 'none').attr('stroke', css('--s1')).attr('stroke-width', 2).attr('d', d3.line().defined(d => d.v != null).x(d => x2(d.i)).y(d => y2(d.v)));
         const cross = f2.g.append('line').attr('class', 'axis-line').attr('y1', 0).attr('y2', f2.h).style('display', 'none');
-        f2.g.append('rect').attr('width', f2.w).attr('height', f2.h).attr('fill', 'transparent').on('mousemove', ev => { const i = Math.round(x2.invert(d3.pointer(ev)[0])); if (i < 0 || i >= p.length) return; cross.style('display', null).attr('x1', x2(i)).attr('x2', x2(i)); showTip(`<b>sekunda ${i}</b><br>pupila ${p[i] ?? 'brak'}`, ev); }).on('mouseleave', () => { cross.style('display', 'none'); hideTip(); });
+        f2.g.append('rect').attr('width', f2.w).attr('height', f2.h).attr('fill', 'transparent').on('mousemove', ev => { const i = Math.round(x2.invert(d3.pointer(ev)[0])); if (i < 0 || i >= p.length) return; cross.style('display', null).attr('x1', x2(i)).attr('x2', x2(i)); showTip(`<b>sekunda ${i}</b><br>źrenica ${p[i] ?? 'brak'}`, ev); }).on('mouseleave', () => { cross.style('display', 'none'); hideTip(); });
       }
     }
     const fr = D.fragments[t - 1];
