@@ -48,5 +48,10 @@ desktop.ini
 .DS_Store
 
 # --- Dashboard output and intermediates embed participant recalls ---
-drafts/*.html
+drafts/**/*.html
+drafts/*.png
 tools/dashboard/*.json
+
+# --- Semantic view: recalls, measures and embeddings are participant data ---
+tools/semantic/*.json
+tools/semantic/*.np[yz]

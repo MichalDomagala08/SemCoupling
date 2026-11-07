@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>SemCoupling Alignment</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s8: #e34948; --wave: #9ec5f4; --box: rgba(42,120,214,0.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s8: #e66767; --wave: #2f5f9a; --box: rgba(57,135,229,0.16);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s8: #e66767; --wave: #2f5f9a; --box: rgba(57,135,229,0.16);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1240px; margin: 0 auto; padding: 28px 16px 80px; }
+h1 { font-size: 26px; margin: 0 0 4px; font-weight: 650; }
+p.lead { color: var(--ink-2); margin: 0 0 14px; max-width: 820px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 12px; margin-bottom: 14px; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; font-size: 13px; color: var(--ink-2); }
+select, button { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+svg { display: block; width: 100%; height: auto; }
+.tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.wbox { fill: var(--box); stroke: var(--s1); stroke-width: 1; cursor: pointer; }
+.wbox.low { stroke: var(--s8); stroke-width: 2; }
+.wbox.cur { fill: var(--s1); fill-opacity: .35; }
+.wlbl { fill: var(--ink); font-size: 12px; pointer-events: none; }
+.text { line-height: 2; font-size: 15px; }
+.text span { cursor: pointer; padding: 1px 2px; border-radius: 4px; }
+.text span:hover { background: var(--box); }
+.text span.cur { background: var(--s1); color: #fff; }
+.text span.low { border-bottom: 2px solid var(--s8); }
+.text span.nt { color: var(--muted); cursor: default; }
+.muted { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<script>try { const t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
+<main>
+  <h1>Słowa bajki na nagraniu</h1>
+  <p class="lead">Każde słowo fragmentu z czasem zmierzonym na nagraniu (wymuszone dopasowanie znanego tekstu, torchaudio MMS). Kliknij słowo na fali albo w tekście, a nagranie zagra od niego. Czerwona ramka to słowo, którego aligner był niepewny (wynik &lt; 0,5).</p>
+  <div class="card">
+    <div class="bar"><select id="frag"></select><button id="play">▶ Odtwórz</button><span id="info"></span></div>
+    <div id="over"></div>
+    <div id="detail"></div>
+    <audio id="audio" preload="auto"></audio>
+  </div>
+  <div class="card"><div class="text" id="text"></div></div>
+</main>
+<script id="data" type="application/json">/*__DATA__*/</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const audio = document.getElementById('audio');
+const WIN = 8, LOW = 0.5;
+const trials = Object.keys(D.fragments).sort((a, b) => a - b);
+d3.select('#frag').selectAll('option').data(trials).join('option').attr('value', t => t).text(t => `${t}. ${D.fragments[t].fragment}`);
+let F, words, t0win = 0;
+
+function wave(sel, W, H, from, to, pad = 0) {
+  const svg = d3.select(sel).html('').append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+  const x = d3.scaleLinear().domain([from, to]).range([0, W]);
+  const env = F.env, hz = D.env_hz, mx = d3.max(env);
+  const pts = env.map((v, i) => [i / hz, v / mx]).filter(p => p[0] >= from && p[0] <= to);
+  const amp = (H - 18 - pad) / 2 - 4, mid = pad + 4 + amp;
+  svg.append('path').attr('fill', css('--wave')).attr('d', d3.area().x(p => x(p[0])).y0(p => mid - p[1] * amp).y1(p => mid + p[1] * amp)(pts));
+  const ticks = d3.range(Math.ceil(from), Math.floor(to) + 1, to - from > 20 ? 5 : 1);
+  svg.append('g').selectAll('text').data(ticks).join('text').attr('class', 'tick').attr('x', d => x(d)).attr('y', H - 2).attr('text-anchor', d => x(d) < 12 ? 'start' : x(d) > W - 12 ? 'end' : 'middle').text(d => d + ' s');
+  return { svg, x, mid, amp };
+}
+function render() {
+  const t = d3.select('#frag').property('value');
+  F = D.fragments[t];
+  words = F.words.map((w, i) => ({ ...w, i }));
+  audio.src = `../Data/audioFiles/expAudio/segm_${t - 1}.wav`;
+  const timed = words.filter(w => w.t0 != null);
+  const nLow = timed.filter(w => w.sc < LOW).length;
+  d3.select('#info').text(`${timed.length} słów · nagranie ${F.dur.toFixed(1)} s · pierwsze słowo od ${timed[0].t0.toFixed(2)} s · ostatnie kończy się w ${timed[timed.length - 1].t1.toFixed(2)} s · niepewnych: ${nLow}`);
+  d3.select('#text').html('').selectAll('span').data(words).join('span')
+    .attr('class', w => w.t0 == null ? 'nt' : (w.sc < LOW ? 'low' : null))
+    .attr('title', w => w.t0 == null ? '' : `${w.t0.toFixed(2)}–${w.t1.toFixed(2)} s · wynik ${w.sc}`)
+    .text(w => w.w).on('click', (ev, w) => playFrom(w)).each(function () { this.after(' '); });
+  t0win = 0; drawOver(); drawDetail();
+}
+function drawOver() {
+  const o = wave('#over', 1200, 70, 0, F.dur);
+  o.svg.append('rect').attr('id', 'win').attr('y', 0).attr('height', 54).attr('fill', 'none').attr('stroke', css('--s2')).attr('stroke-width', 2);
+  o.svg.append('line').attr('id', 'head0').attr('y1', 0).attr('y2', 54).attr('stroke', css('--ink')).attr('stroke-width', 1.5);
+  o.svg.style('cursor', 'pointer').on('click', ev => { const [mx] = d3.pointer(ev); t0win = Math.max(0, Math.min(F.dur - WIN, o.x.invert(mx) - WIN / 2)); drawDetail(); });
+  drawOver.x = o.x; moveWin();
+}
+function moveWin() { const x = drawOver.x; d3.select('#win').attr('x', x(t0win)).attr('width', x(t0win + WIN) - x(t0win)); }
+function drawDetail() {
+  const dd = wave('#detail', 1200, 230, t0win, t0win + WIN, 34);
+  const vis = words.filter(w => w.t0 != null && w.t1 > t0win && w.t0 < t0win + WIN);
+  const g = dd.svg.append('g').selectAll('g').data(vis).join('g');
+  g.append('rect').attr('class', w => 'wbox' + (w.sc < LOW ? ' low' : '')).attr('data-i', w => w.i)
+    .attr('x', w => dd.x(w.t0)).attr('width', w => Math.max(2, dd.x(w.t1) - dd.x(w.t0))).attr('y', 34).attr('height', 2 * dd.amp + 8)
+    .on('click', (ev, w) => playFrom(w));
+  g.append('text').attr('class', 'wlbl').attr('x', w => dd.x(w.t0) + 2).attr('y', (w, i) => 13 + (i % 2) * 15).text(w => w.w);
+  dd.svg.append('line').attr('id', 'head1').attr('y1', 34).attr('y2', 2 * dd.amp + 42).attr('stroke', css('--ink')).attr('stroke-width', 1.5);
+  drawDetail.x = dd.x; moveWin(); tick();
+}
+function playFrom(w) { audio.currentTime = w.t0; audio.play(); }
+function tick() {
+  const t = audio.currentTime || 0;
+  if (!audio.paused && (t > t0win + WIN - 0.5 || t < t0win)) { t0win = Math.max(0, Math.min(F.dur - WIN, t - 1)); drawDetail(); return; }
+  d3.select('#head0').attr('x1', drawOver.x(t)).attr('x2', drawOver.x(t));
+  d3.select('#head1').attr('x1', drawDetail.x(t)).attr('x2', drawDetail.x(t)).style('display', t >= t0win && t <= t0win + WIN ? null : 'none');
+  const cur = words.find(w => w.t0 != null && t >= w.t0 && t < w.t1);
+  d3.selectAll('#detail .wbox').classed('cur', w => cur && w.i === cur.i);
+  d3.selectAll('#text span').classed('cur', w => cur && w.i === cur.i);
+}
+audio.addEventListener('timeupdate', tick);
+(function loop() { if (!audio.paused) tick(); requestAnimationFrame(loop); })();
+const pb = d3.select('#play').on('click', () => audio.paused ? audio.play() : audio.pause());
+audio.addEventListener('play', () => pb.text('⏸ Pauza'));
+audio.addEventListener('pause', () => pb.text('▶ Odtwórz'));
+d3.select('#frag').on('change', render);
+render();
+</script>
+</body>
+</html>

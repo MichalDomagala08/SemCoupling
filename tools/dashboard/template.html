@@ -114,6 +114,7 @@ table.tv th { color: var(--ink-2); font-weight: 600; position: sticky; top: 0; b
   <button class="theme" id="themeBtn" title="Tryb jasny/ciemny">◐</button>
   <h1>SemCoupling · Strategic Mind Wandering</h1>
   <p class="lead">Dane behawioralne i okulograficzne eksperymentu BrainHack Kraków 2026 (Domagała, UJ). 58 osób słuchało 40 fragmentów bajki o Karolinie i Janku; po każdym fragmencie sonda „jak bardzo odpłynąłeś” (MW, 0–99) i 25 s ustnej relacji myśli.</p>
+  <p style="margin:8px 0 0;font-size:14px"><a href="semcoupling-semantic.html" style="color:var(--s1)">Analiza semantyczna →</a></p>
   <nav class="toc" id="toc"></nav>
   <div class="tiles" id="tiles"></div>
 </header>
@@ -122,6 +123,9 @@ table.tv th { color: var(--ink-2); font-weight: 600; position: sticky; top: 0; b
 <script id="data" type="application/json">/*__DATA__*/</script>
 <script>
 const D = JSON.parse(document.getElementById('data').textContent);
+// shared build (build.py --share): no recall texts; the two browsers built on them are left out
+const SHARE = !!D.share;
+if (SHARE) document.querySelector('header .lead').insertAdjacentHTML('afterend', '<p style="margin:8px 0 0;font-size:13px;border-left:3px solid #eda100;padding:6px 10px"><b>Wersja do udostępnienia:</b> same wyniki, bez wypowiedzi uczestników; sekcje „Fragmenty bajki i relacje” i „Podgląd osoby” są wyłączone.</p>');
 const EYE = D.eye || null;
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const fmt = (x, d = 1) => (x == null || Number.isNaN(x)) ? '–' : (+x).toFixed(d);
@@ -294,7 +298,7 @@ function section(id, title, lead, wniosek) {
 
 // ===== 3. hypotheses
 {
-  const grid = section('hyp', '3 · Hipotezy: komu i kiedy „odpływa” myśl', 'Trzy porównania wewnątrz osoby. Każda linia lub kropka to jeden uczestnik.',
+  const grid = section('hyp', '3 · Hipotezy: komu i kiedy „odpływa” myśl', 'Porównania wewnątrz osoby: każda linia lub kropka to jeden uczestnik. Wyjątek to ranking fragmentów po ciekawości, gdzie wiersz to fragment.',
     'Dwa efekty są realne i średniej wielkości: instrukcja „śledź bohatera” obniża MW w jego fragmentach, a nuda je podnosi. Sam bohater nic nie robi, czas na zadaniu robi najwięcej. Największa zmienność siedzi jednak między osobami (średnie od 1 do 60), więc każdy model trzeba liczyć wewnątrz osoby, a nie na surowym MW.');
   // tracking
   const tr = D.tracking;
@@ -331,6 +335,32 @@ function section(id, title, lead, wniosek) {
     .on('mousemove', ev => { const [mx, my] = d3.pointer(ev); const p = qt.find(mx, my, 14); if (p) showTip(`<b>${p.s}</b> · trial ${p.t} (${p.h})<br>ciekawość z = ${fmt(p.x, 2)}, MW z = ${fmt(p.y, 2)}`, ev); else hideTip(); }).on('mouseleave', hideTip);
   finding(c2, `<b>Im nudniej, tym więcej MW.</b> r = ${pr.r} (n = ${pr.n}); średnia korelacja wewnątrz osoby r = ${pr.within_mean_r}, ujemna u ${pr.within_n_negative}/${pr.within.length} osób. Ciekawość bohaterów: Janek ${fmt(pr.pref_by_hero.JANEK)}, Karolina ${fmt(pr.pref_by_hero.KAROLINA)}.`);
   tableView(c2, pr.within, [{ key: 'id', label: 'ID' }, { key: 'r', label: 'r (ciekawość, MW)' }]);
+
+  // fragments ranked by interest: between fragments, not within subject
+  const fr = D.fragments.filter(f => f.pref != null).sort((a, b) => b.pref - a.pref);
+  const corr = (a, b) => { const ma = d3.mean(a), mb = d3.mean(b); return d3.sum(a, (x, i) => (x - ma) * (b[i] - mb)) / Math.sqrt(d3.sum(a, x => (x - ma) ** 2) * d3.sum(b, y => (y - mb) ** 2)); };
+  const rMw = corr(fr.map(f => f.pref), fr.map(f => f.mw_exp2)), rT = corr(fr.map(f => f.pref), fr.map(f => f.trial));
+  const c5 = card(grid, 'Exp2: fragmenty od najciekawszego', `Średnia surowa ocena ciekawości (0–100, ${D.meta.exp.Exp2_Preference.subjects} osób) i średnie MW w Exp2 dla każdego z ${fr.length} fragmentów. Liczba po nazwie to pozycja w sesji; kreska przerywana to średnia.`, { wide: true });
+  legend(c5, [{ t: 'Karolina', c: '--karolina' }, { t: 'Janek', c: '--janek' }]);
+  const RH = 15, ph = fr.length * RH;
+  const f5 = frame(c5.node(), 1160, ph + 54, { l: 130, t: 26, r: 16, b: 28 });
+  const gap = 110, pw = (f5.w - gap) / 2;
+  const xa = d3.scaleLinear().domain([d3.min(fr, f => f.pref) - 2, d3.max(fr, f => f.pref) + 2]).nice().range([0, pw]);
+  const xb = d3.scaleLinear().domain([0, d3.max(fr, f => f.mw_exp2) + 2]).nice().range([pw + gap, f5.w]);
+  [[xa, 'ciekawość (0–100)', d3.mean(fr, f => f.pref)], [xb, 'MW w Exp2 (0–99)', d3.mean(fr, f => f.mw_exp2)]].forEach(([x, t, m]) => {
+    f5.g.append('g').selectAll('line').data(x.ticks(6)).join('line').attr('class', 'grid-line').attr('x1', d => x(d)).attr('x2', d => x(d)).attr('y1', 0).attr('y2', ph);
+    f5.g.append('g').selectAll('text').data(x.ticks(6)).join('text').attr('class', 'tick').attr('x', d => x(d)).attr('y', ph + 16).attr('text-anchor', 'middle').text(d => d);
+    f5.g.append('text').attr('class', 'axis-title').attr('x', d3.mean(x.range())).attr('y', -12).attr('text-anchor', 'middle').text(t);
+    f5.g.append('line').attr('x1', x(m)).attr('x2', x(m)).attr('y1', 0).attr('y2', ph).attr('stroke', css('--ink-2')).attr('stroke-dasharray', '3 3');
+  });
+  const rows5 = f5.g.append('g').selectAll('g').data(fr).join('g').attr('transform', (f, i) => `translate(0,${i * RH + RH / 2})`);
+  rows5.append('rect').attr('x', -130).attr('y', -RH / 2).attr('width', f5.w + 130).attr('height', RH).attr('fill', 'transparent');
+  rows5.append('text').attr('class', 'tick').attr('x', -10).attr('y', 4).attr('text-anchor', 'end').text(f => `${f.fragment} · ${f.trial}`);
+  rows5.append('circle').attr('cx', f => xa(f.pref)).attr('r', 4.5).attr('fill', f => css(heroC(f.hero)));
+  rows5.append('circle').attr('cx', f => xb(f.mw_exp2)).attr('r', 4.5).attr('fill', f => css(heroC(f.hero)));
+  hover(rows5, f => `<b>${f.trial}. ${f.fragment}</b><br>ciekawość ${fmt(f.pref)} · MW Exp2 ${fmt(f.mw_exp2)}<br>miejsce ${fr.indexOf(f) + 1} z ${fr.length} po ciekawości`);
+  finding(c5, `<b>Ciekawsze fragmenty mają mniej MW.</b> Po fragmentach r = ${fmt(rMw, 2)} (n = ${fr.length}). Pozycja w sesji prawie nie tłumaczy ciekawości: jej korelacja z numerem triala to r = ${fmt(rT, 2)}. Zakres jest wąski: od ${fmt(fr[fr.length - 1].pref)} do ${fmt(fr[0].pref)} na skali 0–100.`);
+  tableView(c5, fr.map((f, i) => ({ ...f, rank: i + 1 })), [{ key: 'rank', label: '#' }, { key: 'fragment', label: 'fragment' }, { key: 'trial', label: 'trial' }, { key: 'pref', label: 'ciekawość' }, { key: 'mw_exp2', label: 'MW Exp2' }]);
 
   // hero + time on task
   const hr = D.hero;
@@ -417,7 +447,7 @@ function pairedDots(c, pairs, labels, cols, ylab) {
 }
 
 // ===== 5. fragments browser
-{
+if (!SHARE) {
   const grid = section('frag', '5 · Fragmenty bajki i relacje', 'Kliknij fragment: tekst, MW w obu eksperymentach i wszystkie relacje posortowane po MW. Pod nagłówkiem filtr eksperymentu i próg MW.',
     'To przeglądarka do własnych oczu. Relacje z wysokim MW to zwykle konkretne sprawy z życia (praca, egzamin, znajomi) albo komentarz do procedury („swędzi mnie twarz”, „krzyżyk”); przy niskim MW ludzie opowiadają fabułę lub mówią wprost „byłem skupiony”. Sonda i treść zgadzają się na tyle, że etykieta MW nadaje się na cel modelu.');
   const wrap = d3.select(grid).append('div').attr('class', 'card').style('grid-column', '1 / -1');
@@ -527,7 +557,7 @@ if (EYE) {
 }
 
 // ===== 7. trial viewer
-{
+if (!SHARE) {
   const grid = section('viewer', '7 · Podgląd osoby: 40 triali', EYE ? 'Wybierz osobę i trial: źrenica (1 Hz, surowe jednostki EyeLink), mrugnięcia (czerwone kreski), tekst fragmentu, relacja i sonda.' : 'Wybierz osobę: jej 40 sond MW, teksty i relacje.',
     'Do oglądania pojedynczych przypadków. Osoby z dużymi skokami MW w sesji (widać je na wykresie 40 sond po wybraniu osoby) to najlepsi kandydaci, żeby sprawdzić gołym okiem, czy źrenica lub mrugnięcia zmieniają się razem z sondą, zanim ktoś zbuduje na tym model.');
   const wrap = d3.select(grid).append('div').attr('class', 'card').style('grid-column', '1 / -1');

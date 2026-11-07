@@ -1,0 +1,959 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>SemCoupling Semantics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s7: #6250d6; --s8: #e34948;
+  --seq2: #9ec5f4; --seq4: #3987e5; --seq6: #184f95; --div-mid: #f0efec;
+  --karolina: #6250d6; --janek: #1baf7a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s7: #9085e9; --s8: #e66767;
+    --seq2: #6da7ec; --seq4: #3987e5; --seq6: #86b6ef; --div-mid: #383835;
+    --karolina: #9085e9; --janek: #199e70;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s7: #9085e9; --s8: #e66767;
+  --seq2: #6da7ec; --seq4: #3987e5; --seq6: #86b6ef; --div-mid: #383835;
+  --karolina: #9085e9; --janek: #199e70;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { padding: 28px 16px 8px; max-width: 1240px; margin: 0 auto; }
+h1 { font-size: 26px; margin: 0 0 4px; font-weight: 650; }
+h2 { font-size: 19px; margin: 36px 0 6px; font-weight: 650; }
+h3 { font-size: 15px; margin: 0 0 4px; font-weight: 600; }
+p.lead { color: var(--ink-2); margin: 0; max-width: 820px; }
+main { max-width: 1240px; margin: 0 auto; padding: 0 16px 80px; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 14px 0 0; font-size: 13px; }
+nav.toc a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--border); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.tile .v { font-size: 28px; font-weight: 600; line-height: 1.1; }
+.tile .l { color: var(--ink-2); font-size: 13px; margin-top: 4px; }
+.tile .d { color: var(--muted); font-size: 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; align-items: start; }
+.grid.one { grid-template-columns: 1fr; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 12px; min-width: 0; }
+.card .sub { color: var(--ink-2); font-size: 13px; margin: 0 0 8px; }
+.card .finding { font-size: 13px; color: var(--ink-2); margin-top: 8px; border-top: 1px solid var(--grid); padding-top: 8px; }
+.card .finding b { color: var(--ink); font-weight: 600; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+.grid-line { stroke: var(--grid); stroke-width: 1; }
+.axis-line { stroke: var(--axis); stroke-width: 1; }
+.tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.axis-title { fill: var(--ink-2); font-size: 12px; }
+.lbl { fill: var(--ink-2); font-size: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-2); margin: 4px 0 6px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
+.legend span.line::before { height: 3px; border-radius: 2px; vertical-align: 2px; }
+.tip { position: fixed; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.14); z-index: 20; display: none; max-width: 360px; line-height: 1.4; }
+.tip b { font-weight: 600; }
+.tools { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+button, select, input[type=text] { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 4px 10px; }
+button { cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button.on { background: var(--s1); color: #fff; border-color: var(--s1); }
+table.tv { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; margin-top: 8px; }
+table.tv th, table.tv td { text-align: right; padding: 3px 6px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+table.tv th:first-child, table.tv td:first-child { text-align: left; }
+table.tv th { color: var(--ink-2); font-weight: 600; position: sticky; top: 0; background: var(--surface); }
+.tv-wrap { max-height: 320px; overflow: auto; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 10px 0 12px; font-size: 13px; color: var(--ink-2); }
+.filters label { display: inline-flex; gap: 6px; align-items: center; }
+.frag-list { display: grid; grid-template-columns: 1fr; gap: 2px; max-height: 560px; overflow: auto; }
+.frag { display: grid; grid-template-columns: 34px 34px 1fr 54px; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.frag:hover { background: var(--page); }
+.frag.sel { outline: 2px solid var(--s1); }
+.frag .bar { height: 10px; border-radius: 0 4px 4px 0; background: var(--s1); }
+.frag .hero { font-weight: 600; font-size: 11px; padding: 1px 4px; border-radius: 4px; color: #fff; text-align: center; }
+.hero-K { background: var(--karolina); } .hero-J { background: var(--janek); }
+.story { font-size: 14px; line-height: 1.6; color: var(--ink); background: var(--page); border-radius: 8px; padding: 10px 12px; max-height: 260px; overflow: auto; }
+.recall { border-bottom: 1px solid var(--grid); padding: 8px 2px; font-size: 13.5px; }
+.recall .m { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); margin-bottom: 2px; font-variant-numeric: tabular-nums; }
+.recall .m .mw { font-weight: 600; color: var(--ink); }
+.recall .m .mwbar { display: inline-block; width: 60px; height: 7px; background: var(--grid); border-radius: 4px; vertical-align: middle; position: relative; }
+.recall .m .mwbar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--s8); border-radius: 4px; }
+.recalls { max-height: 520px; overflow: auto; }
+.two { display: grid; grid-template-columns: 1fr 1.2fr; gap: 14px; }
+@media (max-width: 800px) { .two { grid-template-columns: 1fr; } }
+.timeline { display: grid; grid-template-columns: 3fr 1.2fr 2fr; gap: 6px; font-size: 12.5px; margin: 8px 0; }
+.timeline div { background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+.timeline b { display: block; font-weight: 600; }
+.timeline small { color: var(--ink-2); }
+.seq { display: flex; gap: 2px; margin: 6px 0; flex-wrap: wrap; }
+.seq i { width: 22px; height: 16px; border-radius: 3px; font: 600 10px/16px system-ui; text-align: center; color: #fff; font-style: normal; }
+.muted { color: var(--muted); font-size: 12px; }
+.pill { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--ink-2); margin-left: 6px; vertical-align: middle; }
+.theme { position: absolute; right: 16px; top: 16px; }
+.warn { background: var(--page); border-left: 3px solid var(--s4); padding: 8px 12px; font-size: 13px; color: var(--ink-2); border-radius: 0 8px 8px 0; margin: 10px 0; }
+.summary { background: var(--surface); border-left: 3px solid var(--s1); padding: 10px 14px; font-size: 14px; color: var(--ink); border-radius: 0 10px 10px 0; margin: 10px 0 14px; max-width: 980px; line-height: 1.5; }
+.summary b { font-weight: 650; }
+.how { font-size: 13px; color: var(--ink-2); background: var(--page); border: 1px solid var(--grid); border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; line-height: 1.5; }
+.how b { color: var(--ink); font-weight: 600; }
+.guide p { margin: 0 0 8px; font-size: 14px; line-height: 1.55; }
+.guide p:last-child { margin-bottom: 0; }
+.guide b { font-weight: 600; }
+.back { font-size: 13px; color: var(--s1); text-decoration: none; }
+.rl { display: grid; grid-template-columns: 1fr; gap: 2px; max-height: 620px; overflow: auto; }
+.rr { display: grid; grid-template-columns: 44px 60px 1fr; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; cursor: pointer; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.rr:hover { background: var(--page); }
+.rr.sel { outline: 2px solid var(--s1); }
+.rr .bar { height: 8px; border-radius: 0 4px 4px 0; background: var(--s7); }
+.rr .txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
+.rr .txt b { color: var(--ink); font-weight: 600; }
+.three { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 12px; }
+@media (max-width: 900px) { .three { grid-template-columns: 1fr; } }
+.sents span { display: block; padding: 4px 8px; margin: 2px 0; border-radius: 6px; border-left: 3px solid transparent; }
+.sents span.rs { cursor: pointer; }
+.sents span.rs.on { border-left-color: var(--s7); background: var(--page); }
+.sents span.hit { border-left-color: var(--s7); background: color-mix(in srgb, var(--s7) 18%, transparent); }
+.sents span.hit2 { background: color-mix(in srgb, var(--s7) 7%, transparent); }
+.sents small { color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 6px; }
+.best { font-size: 14px; line-height: 1.6; background: color-mix(in srgb, var(--s7) 14%, transparent); border-left: 3px solid var(--s7); border-radius: 0 8px 8px 0; padding: 10px 12px; }
+.three .story { max-height: none; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0 4px; }
+.pair div { background: var(--page); border-radius: 8px; padding: 8px 12px; }
+.pair .v { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.pair .l { color: var(--ink-2); font-size: 12.5px; }
+.pair-t { font-size: 12.5px; color: var(--ink-2); margin-bottom: 10px; }
+.sents span.rec { border-left-color: var(--s3); background: color-mix(in srgb, var(--s3) 16%, transparent); }
+.cdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 6px 14px; }
+.panels h4 { font-size: 13px; font-weight: 600; margin: 4px 0 0; color: var(--ink-2); }
+.dis { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 800px) { .dis { grid-template-columns: 1fr; } }
+.dis .it { padding: 6px 8px; border-bottom: 1px solid var(--grid); cursor: pointer; font-size: 12.5px; }
+.dis .it:hover { background: var(--page); }
+.dis .it .n { font-variant-numeric: tabular-nums; font-weight: 600; }
+.dis .it .why { color: var(--muted); font-size: 11.5px; }
+.dis .it .sc { display: inline-block; font-size: 11.5px; padding: 0 7px; border-radius: 10px; border: 1px solid var(--s8); color: var(--ink); margin-right: 4px; font-variant-numeric: tabular-nums; }
+.dis .it .sc.h { border-color: var(--s7); }
+.dis .it .id { font-size: 11px; color: var(--muted); margin: 0 6px; }
+.dis .it .open { font-size: 11.5px; color: var(--s1); white-space: nowrap; }
+</style>
+</head>
+<body>
+<script>try { const t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
+<div class="tip" id="tip"></div>
+<header>
+  <button class="theme" id="themeBtn" title="Tryb jasny/ciemny">◐</button>
+  <a class="back" href="semcoupling-dashboard.html">← Dashboard</a>
+  <h1>SemCoupling · Analiza semantyczna relacji</h1>
+  <p class="lead">Jak blisko znaczeniowo relacja myśli jest do fragmentu bajki, który osoba właśnie słyszała. Każde zdanie relacji i każde zdanie fragmentu zamienione na wektor sBERT; podobieństwo = cosinus. Dwa modele: polski (sdadas, mpnet) i wielojęzyczny MiniLM z kodu mentora (<code>storyTools.py</code>).</p>
+  <nav class="toc" id="toc"></nav>
+  <div class="tiles" id="tiles"></div>
+</header>
+<main id="main"></main>
+
+<script id="data" type="application/json">/*__DATA__*/</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+// shared build (build.py --share): no recall texts; the views built on them are left out
+const SHARE = !!D.share;
+const snip = (r, n) => SHARE || !r.rs.length ? '' : '<br>' + r.rs.join(' ').slice(0, n) + '…';
+if (SHARE) document.querySelector('header .lead').insertAdjacentHTML('afterend', '<div class="warn"><b>Wersja do udostępnienia:</b> same wyniki, bez tekstów relacji. Przeglądarka relacji i przeglądarka prób są wyłączone, kliknięcie kropki niczego nie otwiera. Lista rozjazdów w sekcji 10 podaje kod próby (Subject · trial · fragment), żeby sprawdzić ją w danych.</div>');
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (x, d = 1) => (x == null || Number.isNaN(x)) ? '–' : (+x).toFixed(d);
+const pct = x => x == null ? '–' : (100 * x).toFixed(0) + '%';
+const pval = p => p == null ? '' : (p < 0.001 ? 'p < 0.001' : 'p = ' + p.toFixed(3));
+const EXP = { Exp1_Cued: { name: 'Exp1 · wskazany bohater', c: '--s1' }, Exp2_Preference: { name: 'Exp2 · ocena ciekawości', c: '--s2' } };
+const heroC = h => h === 'KAROLINA' ? '--karolina' : '--janek';
+
+// ---------- tooltip
+const tip = document.getElementById('tip');
+function showTip(html, ev) { tip.innerHTML = html; tip.style.display = 'block'; moveTip(ev); }
+function moveTip(ev) { const w = tip.offsetWidth, h = tip.offsetHeight; let x = ev.clientX + 14, y = ev.clientY + 14; if (x + w > innerWidth - 8) x = ev.clientX - w - 14; if (y + h > innerHeight - 8) y = ev.clientY - h - 14; tip.style.left = x + 'px'; tip.style.top = y + 'px'; }
+function hideTip() { tip.style.display = 'none'; }
+
+// ---------- chart scaffolding
+function frame(sel, W, H, m) {
+  const svg = d3.select(sel).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+  const g = svg.append('g').attr('transform', `translate(${m.l},${m.t})`);
+  return { svg, g, w: W - m.l - m.r, h: H - m.t - m.b };
+}
+function yGrid(g, y, w, ticks = 5) {
+  g.append('g').selectAll('line').data(y.ticks(ticks)).join('line').attr('class', 'grid-line').attr('x1', 0).attr('x2', w).attr('y1', d => y(d)).attr('y2', d => y(d));
+  g.append('g').selectAll('text').data(y.ticks(ticks)).join('text').attr('class', 'tick').attr('x', -8).attr('y', d => y(d) + 4).attr('text-anchor', 'end').text(d => d);
+}
+function xAxis(g, x, h, ticks, fmtf = d => d) {
+  g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', x.range()[1]).attr('y1', h).attr('y2', h);
+  g.append('g').selectAll('text').data(ticks).join('text').attr('class', 'tick').attr('x', d => x(d)).attr('y', h + 16).attr('text-anchor', 'middle').text(fmtf);
+}
+function axisTitle(g, txt, w, h, axis) {
+  if (axis === 'x') g.append('text').attr('class', 'axis-title').attr('x', w / 2).attr('y', h + 34).attr('text-anchor', 'middle').text(txt);
+  else g.append('text').attr('class', 'axis-title').attr('transform', `translate(-36,${h / 2}) rotate(-90)`).attr('text-anchor', 'middle').text(txt);
+}
+function card(parent, title, sub, { wide = false } = {}) {
+  const c = d3.select(parent).append('div').attr('class', 'card').style('grid-column', wide ? '1 / -1' : null);
+  c.append('h3').text(title);
+  if (sub) c.append('p').attr('class', 'sub').html(sub);
+  if (HOW[title]) c.append('div').attr('class', 'how').html('<b>Jak czytać.</b> ' + HOW[title]);
+  return c;
+}
+// «Jak czytać» per chart, keyed by card title: Madara asked for one under every chart
+const HOW = {
+  'Sprzężenie max': 'Oś pozioma: odpowiedź na sondę MW w przedziałach (lewo = skupienie, prawo = odpływanie). Oś pionowa: jak blisko treścią relacja jest swojego fragmentu (cosinus; wyżej = bliżej bajki). Kropka = średnia relacji w przedziale, wąs = ±1 SEM, czyli niepewność tej średniej. Kolor = model. Kropki opadające w prawo znaczą: im więcej odpływania, tym relacja mniej o bajce. Nachodzące na siebie wąsy = różnica może być przypadkowa.',
+  'Sprzężenie centroid': 'Jak wykres obok, ale relacja i fragment są najpierw uśrednione do jednego wektora. Patrz na kształt (czy opada w prawo), nie na poziom: centroid zawsze wychodzi wyżej niż max.',
+  'polski mpnet': 'Oś pozioma: sprzężenie max jednej relacji (prawo = bliżej bajki). Oś pionowa: jaka część relacji ma taką wartość. Dwie krzywe = dwa eksperymenty, pionowe kreski w ich kolorach = ich średnie. Szara przerywana kreska = jak bardzo ta sama relacja „pasuje” do 39 innych fragmentów, czyli poziom przypadku. Im dalej krzywe na prawo od szarej kreski, tym bardziej relacje są o tym, co ludzie właśnie usłyszeli.',
+  'MiniLM (mentor)': 'Ten sam wykres co obok, policzony modelem z kodu mentora. Jeśli oba wyglądają podobnie, wynik nie zależy od wyboru modelu.',
+  'Sprzężenie max: polski vs MiniLM': 'Każda kropka to jedna relacja: x = wynik modelu polskiego, y = wynik MiniLM. Wąski pas wzdłuż przerywanej przekątnej znaczy, że modele oceniają relacje tak samo (r bliskie 1). Kropka daleko od chmury = relacja, w której się nie zgadzają; kliknij ją, żeby ją przeczytać.',
+  'Miejsce własnego fragmentu (1–40)': 'Dla każdej relacji układam wszystkie 40 fragmentów od najbardziej do najmniej podobnego. Słupek przy 1 = ile relacji najbardziej przypomina właśnie usłyszany fragment, przy 40 = ile najmniej. Gdyby relacje nie miały nic wspólnego z bajką, wszystkie słupki byłyby równe. Wysoki słupek na lewym brzegu = relacje wskazują swój fragment.',
+  'Własny fragment na 1. miejscu, wg MW': 'Oś pozioma: przedziały MW. Wysokość słupka: jaka część relacji z tego przedziału najbardziej przypomina właśnie usłyszany fragment. Przypadek dałby 2,5 %. Słupki malejące w prawo = przy odpływaniu relacja rzadziej trafia w swój fragment.',
+  'Własny vs poprzedni fragment': 'Dwie kropki na model: podobieństwo relacji do fragmentu usłyszanego przed chwilą (niebieska) i do poprzedniego fragmentu tej samej historii (szara). Niebieska wyżej = relacja jest o tym, co było przed chwilą, a nie o wcześniejszej części historii.',
+  'Relacje': 'Po lewej lista relacji, posortowana po sprzężeniu (kolejność zmienisz filtrem). Kliknij relację: po prawej fragment bajki z podświetlonym zdaniem, które najbardziej do niej pasuje, i cztery liczby. Sprzężenie max i centroid: wyżej = bliżej bajki. Miejsce: 1 = relacja najbardziej przypomina właśnie ten fragment. Poprzedni: to samo względem poprzedniego fragmentu historii.',
+  'Źrenica: przywołane vs nieprzywołane sekundy': 'Dwie duże liczby to średni rozmiar źrenicy w sekundach zdań, które potem wróciły w relacji (zielona), i w pozostałych (czarna). Jednostka: SD tej osoby, 0 = jej przeciętny rozmiar, minus = węższa (przewodnik nad sekcją 6). Pod liczbami różnica i p; p < 0,05 znaczyłoby, że różnica raczej nie jest przypadkowa. Górna para to wartości surowe, dolna po odjęciu wspólnego przebiegu w czasie fragmentu. Uczciwy jest wynik dolny, bo górny myli zdanie z jego miejscem we fragmencie.',
+  'Różnica wg MW': 'Każda kropka = źrenica w przywołanych minus w nieprzywołanych sekundach (po odjęciu przebiegu), osobno w każdym przedziale MW; kolor = model, wąs = ±1 SEM. Nad przerywaną linią = źrenica szersza w zdaniach, które wróciły. Wąs przecinający linię zero = w tym przedziale różnicy nie ma.',
+  'Źrenica wokół początku zdania': '0 s = moment, w którym zaczyna się zdanie bajki. Linie pokazują rozmiar źrenicy od 3 s przed do 8 s po tym momencie: zielona dla zdań, które potem wróciły w relacji, szara dla pozostałych. Jednostka: SD tej osoby po odjęciu wspólnego przebiegu w czasie (0 = jak przeciętnie w tym miejscu fragmentu, minus = węższa). Pasmo = ±1 SEM; gdy pasma obu linii na siebie nachodzą, różnicy nie odróżnisz od szumu. Źrenica reaguje z opóźnieniem 0,5–1,5 s, więc efektu szukaj na prawo od 0.',
+  'Przeglądarka prób': 'Linia = źrenica jednej osoby w jednej próbie, sekunda po sekundzie (SD tej osoby; nad 0 = szersza niż zwykle). Pasma w tle to kolejne zdania bajki; wypełnione = zdanie, które wróciło w relacji. Obok relacja i lista zdań bajki z ich podobieństwem do relacji. Sprawdź, czy linia rośnie w wypełnionych pasmach.',
+  'Trzy pary': 'Trzy wierzchołki to trzy miary tej samej próby. Liczba na krawędzi to korelacja r wewnątrz osoby: 0 = brak związku, bliżej −1 lub +1 = silniejszy związek; minus = gdy jedna miara rośnie, druga spada. Ciągła krawędź = związek istotny (p < 0,05), przerywana = brak związku; grubość rośnie z siłą związku.',
+  'Tekst przewidywany przez źrenicę i MW naraz': 'Pytanie: czy znając źrenicę i MW, przewidzę, na ile relacja jest o bajce. Kropka = o ile SD zmienia się sprzężenie, gdy dany predyktor rośnie o 1 SD, a drugi stoi w miejscu. Wąs = 95 % przedział ufności. Wąs, który nie dotyka przerywanej linii zero = ten predyktor coś wnosi; wąs przecinający zero = nie wnosi.',
+  'Przebieg źrenicy po słowie: wysokie vs niskie MW': '0 s = początek słowa w nagraniu. Oś pionowa: rozmiar źrenicy w SD tej osoby minus jej rozmiar w pół sekundy przed słowem. 0 = tak jak przed słowem; minus = węższa (−0,06 to o 0,06 SD, czyli mniej niż pół procenta rozmiaru). Czerwona linia = próby z wysokim MW, niebieska = z niskim, pasmo = ±1 SEM. Przerywane linie to te same próby w losowych chwilach: one też opadają, bo źrenica przez cały fragment powoli się zwęża. Reakcję na słowo widać jako odstęp między linią ciągłą a przerywaną w tym samym kolorze, wpływ MW jako odstęp między czerwoną a niebieską.',
+  'Różnica wysokie − niskie MW w oknach': 'Każdy wiersz to jedna grupa słów w jednym oknie czasu po słowie. Kółko = o ile źrenica przy wysokim MW różni się od tej przy niskim; na prawo od zera = szersza przy wysokim MW. Kreska = 95 % przedział ufności. Kreska przecinająca przerywaną linię zero = różnicy nie da się odróżnić od zera; kółko byłoby pełne dopiero przy p < 0,05. Wiersze „losowe chwile” to kontrola: jeśli wyglądają jak słowa, różnica nie dotyczy słów.',
+  'Kategorie w przedziałach MW': 'Każdy pasek to wszystkie relacje z jednego przedziału odpowiedzi na sondę (u góry skupienie, na dole odpływanie), podzielone na kategorie treści; długość kawałka = udział tej kategorii. Patrz, jak niebieska część (historia) kurczy się w dół, a które kolory ją zastępują. Przedział 76–99 ma tylko 79 relacji, więc jego udziały są najmniej pewne.',
+  'Sprzężenie wg kategorii': 'Każdy wiersz to jedna kategoria treści. Kropka = średnie sprzężenie relacji z tej kategorii z fragmentem (prawo = bliżej bajki), wąs = ±1 SEM; kolor = model sBERT. Kategorie po prawej to te, które sBERT rozpoznaje jako „o bajce”; kategorie z kropkami w jednym miejscu są dla sBERT nie do odróżnienia, nawet jeśli znaczą co innego.',
+  'MW z sondy wg kategorii': 'Kropka = średnia odpowiedź na sondę MW w relacjach danej kategorii (prawo = bardziej rozproszeni według siebie), wąs = ±1 SEM. Porównaj z wykresem obok: kategoria może mieć niskie sprzężenie i niskie MW naraz (osoba mówiła o swojej uwadze, a nie o bajce, choć słuchała).',
+  'Oko wg kategorii': 'Trzy panele, trzy cechy oka z całej próby. Każda w z wewnątrz osoby: 0 = przeciętna próba tej osoby, plus = więcej niż zwykle (szersza źrenica, bardziej rozbiegane spojrzenie, częstsze mrugnięcia). Kropka = średnia osób, wąs = ±1 SEM, w nawiasie liczba osób. Pełna kropka przy kategorii innej niż historia = ta kategoria różni się od historii w tych samych osobach z p < 0,05; przy tylu porównaniach kilka takich wyjdzie przypadkiem, więc traktuj je jako trop.',
+  'Haiku w piątkach własnej skali osoby': 'Ten sam związek co obok, ale bez różnic między osobami. Próby każdej osoby są ułożone od tej, w której zaznaczyła najmniejsze rozproszenie, do największego, i podzielone na pięć równych części. Kropka = średnia ocena Haiku w tej części u wszystkich osób, wąs = 95 % CI. Kropki rosnące w prawo = Haiku rozpoznaje, kiedy ta sama osoba odpływa bardziej niż zwykle.',
+  'Sonda vs ocena Haiku': 'Czarna linia z kropkami to najważniejsza część: średnia ocena Haiku w każdym przedziale samooceny (wąs = 95 % CI); rośnie w prawo = Haiku średnio idzie za ludźmi. Blade kropki w tle to pojedyncze relacje: x = co osoba zaznaczyła na skali rozproszenia, y = co Haiku zgadł z samego tekstu relacji, na tej samej skali 0–100. Kolor = kategoria z sekcji 9. Kropki na przerywanej przekątnej = zgoda. Kropki wysoko po lewej: osoba mówi, że była skupiona, a tekst brzmi jak odpływanie; nisko po prawej: osoba mówi, że odpłynęła, a tekst to streszczenie bajki. Kliknij kropkę, żeby przeczytać relację w sekcji 5.',
+  'Co przewiduje sondę': 'Każdy wiersz to jedna miara z tekstu i jej związek z odpowiedzią na sondę, policzony osobno w każdej osobie i uśredniony (r: 0 = brak związku, 1 = pełna zgoda). Sprzężenie ma odwrócony znak, żeby wszystkie wiersze czytać tak samo: na prawo = miara idzie w parze z sondą. Kreska = 95 % przedział ufności, pełne kółko = p < 0,05. Dolne wiersze to najważniejsze pytanie: czy Haiku wie coś o rozproszeniu ponad to, co już mówi sprzężenie (r cząstkowe).',
+  'Sonda i Haiku wg kategorii': 'Dla każdej kategorii dwie kropki: średnia odpowiedź osób na sondę (czerwona) i średnia ocena Haiku (fioletowa), ta sama skala 0–100. Fioletowa na prawo od czerwonej = Haiku ocenia tę kategorię jako bardziej rozproszoną niż sami ludzie.',
+  'Największe rozjazdy': 'Po lewej relacje, w których Haiku dał dużo wyższe rozproszenie niż osoba sama sobie, po prawej odwrotnie. Czerwona plakietka = co osoba zaznaczyła na skali (0 brak rozproszenia, 100 pełne), fioletowa = co zgadł Haiku z tekstu; obie liczby na tej samej skali. ' + (SHARE ? 'Identyfikator (Subject · trial · fragment) to wiersz w danych, w którym przeczytasz relację; obok kategoria z sekcji 9. „Tabela” daje te same wiersze do skopiowania.' : 'Pod tekstem uzasadnienie Haiku (opisuje jego ocenę, nie osoby). Kliknij wiersz, żeby otworzyć relację w sekcji 5; „Tabela” pokazuje identyfikatory do odszukania w CSV.'),
+  'Reakcja na słowo ponad losowe chwile': 'Kółko = źrenica po słowie minus źrenica w losowej chwili tej samej próby; na lewo od zera = po słowie węższa, na prawo = szersza. Pełne kółko = różnica istotna (p < 0,05), czyli źrenica naprawdę reaguje na słowo. Czerwone i niebieskie to dwie połowy MW, czarne to ich różnica: czarne na zerze = reakcja na słowo jest taka sama przy odpływaniu i przy skupieniu.',
+};
+function legend(c, items) {
+  const l = c.append('div').attr('class', 'legend');
+  items.forEach(it => l.append('span').attr('class', it.line ? 'line' : null).style('--c', css(it.c)).text(it.t));
+}
+function finding(c, html) { c.append('div').attr('class', 'finding').html(html); }
+// table-view twin: button toggles a table built from rows [{col: val}]
+function tableView(c, rows, cols) {
+  const tools = c.append('div').attr('class', 'tools');
+  const wrap = c.append('div').attr('class', 'tv-wrap').style('display', 'none');
+  const btn = tools.append('button').text('Tabela').on('click', () => { const on = wrap.style('display') === 'none'; wrap.style('display', on ? 'block' : 'none'); btn.classed('on', on); });
+  const t = wrap.append('table').attr('class', 'tv');
+  t.append('thead').append('tr').selectAll('th').data(cols).join('th').text(d => d.label);
+  t.append('tbody').selectAll('tr').data(rows).join('tr').selectAll('td').data(r => cols.map(cl => cl.f ? cl.f(r[cl.key], r) : r[cl.key])).join('td').text(d => d == null ? '–' : d);
+}
+function hover(selection, html) {
+  selection.on('mouseenter', (ev, d) => showTip(html(d), ev)).on('mousemove', moveTip).on('mouseleave', hideTip);
+}
+
+// ---------- sections
+const main = d3.select('#main');
+const sections = [];
+function section(id, title, lead, wniosek) {
+  sections.push({ id, title });
+  const s = main.append('section').attr('id', id);
+  s.append('h2').text(title);
+  if (lead) s.append('p').attr('class', 'lead').html(lead);
+  if (wniosek) s.append('div').attr('class', 'summary').html('<b>Wniosek.</b> ' + wniosek);
+  return s.append('div').attr('class', 'grid').node();
+}
+
+
+// ---------- semantic view
+const M = D.meta, S = D.summary, R = D.recalls;
+R.forEach((r, i) => { r.i = i; });
+const FR = Object.fromEntries(D.fragments.map(f => [f.name, f]));
+const MOD = { pl: { t: 'polski mpnet', c: '--s7' }, mini: { t: 'MiniLM (mentor)', c: '--s4' } };
+const MK = ['pl', 'mini'];
+const modelName = k => M.models.find(m => m.key === k).name;
+let selectRecall = () => {};
+// thought categories (ticket 3) and Haiku's distraction rating (ticket 11), both optional
+const LB = D.labels || null, LBR = i => LB && LB.per_recall[i], RATE = LB && LB.rate ? LB.rate : null;
+const CATN = { story: 'historia', association: 'skojarzenie z historią', task: 'zadanie i własna uwaga', environment: 'ciało i otoczenie', self_past: 'własna przeszłość', self_present: 'własne sprawy bez czasu', self_future: 'własne plany', blank: 'brak treści' };
+const CATC = { story: '--s1', association: '--seq2', task: '--s4', environment: '--s2', self_past: '--s7', self_present: '--s8', self_future: '--s3', blank: '--muted' };
+const CAT_LIGHT = new Set(['association', 'task', 'blank']);   // segments where white text would not read
+const catDot = k => k ? `<i class="cdot" style="background:${css(CATC[k])}" title="${CATN[k]}"></i>` : '';
+
+// section conclusions: numbers from the data, interpretation written against the 2026-11-07 build
+const bins = k => S[k].by_mw, peak = k => bins(k).reduce((a, b) => (b.cmax > a.cmax ? b : a));
+const WNIOSEK_MW = () => `Sprzężenie nie spada liniowo z MW, tylko ma kształt odwróconego U: najniższe przy MW 0–10 (${fmt(bins('pl')[0].cmax, 3)}) i przy 76–99 (${fmt(bins('pl')[4].cmax, 3)}), najwyższe w środku (${peak('pl').label}: ${fmt(peak('pl').cmax, 3)}; model polski, MiniLM to samo). Dół po lewej robią relacje, które sędziowie oznaczyli jako „tylko o stanie uwagi”: przy MW 0–10 to co czwarta relacja i ma sprzężenie 0,345 wobec 0,451 pozostałych (polski model). „Byłem skupiony na historii” jest daleko od treści bajki, choć osoba słuchała. Korelacja z MW jest więc słaba (r = ${fmt(S.pl.r_mwz.r, 2)} i ${fmt(S.mini.r_mwz.r, 2)}), choć istotna także wewnątrz osoby. Sprzężenie mierzy coś innego niż sonda: <b>czy relacja mówi o fabule</b>, a nie <b>czy osoba słuchała</b>.`;
+const WNIOSEK_DIST = () => `Oba eksperymenty mają prawie ten sam rozkład (polski: ${fmt(S.pl.by_exp['1'].mean, 3)} vs ${fmt(S.pl.by_exp['2'].mean, 3)}), więc instrukcja z Exp1 nie zmienia tego, jak bardzo relacje trzymają się bajki. Rozkład jest szeroki i ma długi prawy ogon: większość relacji leży niewiele nad poziomem „dowolnego fragmentu”, a około 250 relacji (sprzężenie powyżej 0,6 w modelu polskim) wyraźnie streszcza to, co osoba słyszała.`;
+const WNIOSEK_MODELS = () => `Modele zgadzają się w ${fmt(100 * S.models_r.r ** 2, 0)} % wariancji (r = ${fmt(S.models_r.r, 2)}). Polski daje wyższe wartości bezwzględne, ale kolejność relacji jest prawie ta sama, więc wybór modelu nie zmienia wniosków. MiniLM z kodu mentora wystarcza do porównań, polski lepiej rozdziela fragmenty (sekcja 4).`;
+const WNIOSEK_SPEC = () => `Relacja wskazuje własny fragment spośród 40 w ${pct(S.pl.spec1)} przypadków (MiniLM ${pct(S.mini.spec1)}), wobec 2,5 % losowo: około siedem razy częściej niż przypadek, ale w większości relacji własny fragment nie wygrywa. Jest też bliżej własnego fragmentu niż poprzedniego z tej samej historii, więc ludzie mówią o tym, co właśnie słyszeli, a nie o tym, co pamiętają z wcześniej. Trafność też ma kształt odwróconego U względem MW.`;
+const WNIOSEK_BROWSER = () => `Na dole listy (najniższe sprzężenie) są relacje o jedzeniu, zakupach i „cały czas byłem skupiony na historii”; na górze streszczenia fabuły z imionami bohaterów. Ten drugi przypadek pokazuje, że niskie sprzężenie nie znaczy „odpłynął”: deklaracja uwagi bez treści dostaje taki sam niski wynik jak myśl o obiedzie. ${LB ? 'Rozdziela je filtr „kategoria” (sekcja 9: zadanie i własna uwaga vs własne plany).' : 'Rozdzielić je mają etykiety z ticketu 3.'}`;
+
+// grouped bars from zero, or with dots: true points ± SEM on a zoomed axis (a bar on a cut axis lies about size)
+function groupedBars(c, rows, series, { dec = 3, xTitle = 'MW (sonda 0–99)', dots = false, connect = true, zero = false } = {}) {
+  const f = frame(c.node(), 560, 210, { l: 52, t: 10, r: 8, b: 40 });
+  const x = d3.scaleBand().domain(rows.map(b => b.label)).range([0, f.w]).paddingInner(0.3).paddingOuter(0.15);
+  const xs = d3.scaleBand().domain(series.map(s => s.k)).range([0, x.bandwidth()]).paddingInner(0.12);
+  const vals = rows.flatMap(b => series.flatMap(s => b[s.k] == null ? [] : [b[s.k] - (s.sk ? b[s.sk] : 0), b[s.k] + (s.sk ? b[s.sk] : 0)])).concat(zero ? [0] : []);
+  const y = d3.scaleLinear().domain([dots ? d3.min(vals) : 0, d3.max(vals)]).nice().range([f.h, 0]);
+  if (dots) {
+    yGrid(f.g, y, f.w, 4); f.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f.w).attr('y1', f.h).attr('y2', f.h);
+    if (zero) f.g.append('line').attr('x1', 0).attr('x2', f.w).attr('y1', y(0)).attr('y2', y(0)).attr('stroke', css('--ink-2')).attr('stroke-dasharray', '4 3');
+    f.g.append('g').selectAll('text').data(rows).join('text').attr('class', 'tick').attr('x', b => x(b.label) + x.bandwidth() / 2).attr('y', f.h + 16).attr('text-anchor', 'middle').text(b => b.label);
+    axisTitle(f.g, xTitle, f.w, f.h, 'x');
+    for (const s of series) {
+      const cx = b => x(b.label) + xs(s.k) + xs.bandwidth() / 2, pts = rows.filter(b => b[s.k] != null);
+      if (connect) f.g.append('path').datum(pts).attr('fill', 'none').attr('stroke', css(s.c)).attr('stroke-width', 1.5).attr('opacity', .5).attr('d', d3.line().x(cx).y(b => y(b[s.k])));
+      const g = f.g.append('g').selectAll('g').data(pts).join('g');
+      if (s.sk) g.append('line').attr('x1', cx).attr('x2', cx).attr('y1', b => y(b[s.k] - b[s.sk])).attr('y2', b => y(b[s.k] + b[s.sk])).attr('stroke', css(s.c)).attr('stroke-width', 2);
+      g.append('circle').attr('cx', cx).attr('cy', b => y(b[s.k])).attr('r', 5).attr('fill', css(s.c)).attr('stroke', css('--surface')).attr('stroke-width', 1.5);
+      hover(g, b => `<b>${b.label}</b> · ${s.t}<br>${fmt(b[s.k], dec)}${s.sk ? ' ± ' + fmt(b[s.sk], dec) + ' (SEM)' : ''}<br>n = ${b.n} relacji`);
+    }
+    return;
+  }
+  yGrid(f.g, y, f.w, 4); f.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f.w).attr('y1', f.h).attr('y2', f.h);
+  f.g.append('g').selectAll('text').data(rows).join('text').attr('class', 'tick').attr('x', b => x(b.label) + x.bandwidth() / 2).attr('y', f.h + 16).attr('text-anchor', 'middle').text(b => b.label);
+  axisTitle(f.g, xTitle, f.w, f.h, 'x');
+  for (const s of series) {
+    const g = f.g.append('g').selectAll('g').data(rows.filter(b => b[s.k] != null)).join('g');
+    g.append('rect').attr('x', b => x(b.label) + xs(s.k)).attr('y', b => y(b[s.k])).attr('width', xs.bandwidth()).attr('height', b => f.h - y(b[s.k])).attr('rx', 3).attr('fill', css(s.c));
+    if (s.sk) g.append('line').attr('x1', b => x(b.label) + xs(s.k) + xs.bandwidth() / 2).attr('x2', b => x(b.label) + xs(s.k) + xs.bandwidth() / 2).attr('y1', b => y(b[s.k] - b[s.sk])).attr('y2', b => y(b[s.k] + b[s.sk])).attr('stroke', css('--ink')).attr('stroke-width', 1.5);
+    hover(g, b => `<b>MW ${b.label}</b> · ${s.t}<br>${fmt(b[s.k], dec)}${s.sk ? ' ± ' + fmt(b[s.sk], dec) + ' (SEM)' : ''}<br>n = ${b.n} relacji`);
+  }
+}
+
+// rows {label, m, se, p, t, c, head?}: dot ± 95 % CI against a dashed zero; filled dot = p < 0.05
+function forest(c, rows, xTitle, { W = 430, l = 178 } = {}) {
+  const CI = 1.96;
+  const f = frame(c.node(), W, 52 + rows.length * 22, { l, t: 8, r: 14, b: 40 });
+  const lo = d3.min(rows, r => r.m - CI * r.se), hi = d3.max(rows, r => r.m + CI * r.se);
+  const x = d3.scaleLinear().domain([Math.min(lo, 0), Math.max(hi, 0)]).nice().range([0, f.w]);
+  const y = (r, i) => 10 + i * 22;
+  f.g.append('g').selectAll('line').data(x.ticks(4)).join('line').attr('class', 'grid-line').attr('x1', d => x(d)).attr('x2', d => x(d)).attr('y1', 0).attr('y2', f.h);
+  xAxis(f.g, x, f.h, x.ticks(4), d => d); axisTitle(f.g, xTitle, f.w, f.h, 'x');
+  f.g.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', 0).attr('y2', f.h).attr('stroke', css('--ink-2')).attr('stroke-dasharray', '4 3');
+  const g = f.g.append('g').selectAll('g').data(rows).join('g').attr('transform', (r, i) => `translate(0,${y(r, i)})`);
+  g.append('text').attr('class', 'tick').attr('x', -10).attr('y', 4).attr('text-anchor', 'end').style('font-size', '12px').style('font-weight', r => r.head ? 600 : null).attr('fill', r => r.head ? css('--ink') : null).text(r => r.label);
+  g.append('line').attr('x1', r => x(r.m - CI * r.se)).attr('x2', r => x(r.m + CI * r.se)).attr('stroke', r => css(r.c)).attr('stroke-width', 2);
+  g.append('circle').attr('cx', r => x(r.m)).attr('r', 5).attr('fill', r => r.p < 0.05 ? css(r.c) : css('--surface')).attr('stroke', r => css(r.c)).attr('stroke-width', 2);
+  hover(g, r => `<b>${r.label}</b><br>${fmt(r.m, 3)} ± ${fmt(r.se, 3)} (SEM)<br>t = ${r.t}, ${pval(r.p)}`);
+}
+
+// ===== tiles
+{
+  const t = d3.select('#tiles');
+  const tiles = [
+    [M.n_recalls.toLocaleString('pl'), 'relacji osadzonych', `z ${M.n_rows} triali; ${M.n_no_sentences} bez treści pominięte`],
+    [M.n_recall_sentences.toLocaleString('pl'), 'zdań w relacjach', 'unikalnych, każde osobno w sBERT'],
+    [M.n_story_sentences, 'zdań bajki', `${M.n_fragments} fragmentów, 4–8 zdań każdy`],
+    [fmt(S.models_r.r, 2), 'zgodność modeli (r)', 'sprzężenie max, polski vs MiniLM'],
+  ];
+  tiles.forEach(([v, l, d]) => { const e = t.append('div').attr('class', 'tile'); e.append('div').attr('class', 'v').text(v); e.append('div').attr('class', 'l').text(l); e.append('div').attr('class', 'd').text(d); });
+  const e = t.append('div').attr('class', 'tile').style('grid-column', 'span 2');
+  e.append('div').attr('class', 'l').html(M.models.map(m => `<b style="color:${css(MOD[m.key].c)}">■</b> ${m.name} <span class="muted">(${m.dim} wym.)</span>`).join('<br>'));
+  e.append('div').attr('class', 'd').text('dwa modele sBERT');
+}
+
+// ===== 1. coupling vs MW
+{
+  const sp = S.pl, sm = S.mini;
+  const grid = section('mw', '1 · Sprzężenie vs MW', 'Sprzężenie relacji z jej fragmentem w przedziałach odpowiedzi na sondę. <b>max</b>: dla każdego zdania relacji najbliższe zdanie fragmentu, uśrednione po zdaniach relacji (jak <code>bertSentenceCosineSim(aggregation="max")</code>). <b>centroid</b>: cosinus średniego wektora relacji i średniego wektora fragmentu. Wąsy = ±1 SEM.',
+    WNIOSEK_MW());
+  const rows = MK.map(k => S[k].by_mw);
+  const merged = rows[0].map((b, i) => ({ label: b.label, n: b.n, pl: b.cmax, pl_sem: b.cmax_sem, mini: rows[1][i].cmax, mini_sem: rows[1][i].cmax_sem, plc: b.cent, plc_sem: b.cent_sem, minic: rows[1][i].cent, minic_sem: rows[1][i].cent_sem }));
+  const c1 = card(grid, 'Sprzężenie max', 'Średnia po relacjach w przedziale MW.');
+  legend(c1, MK.map(k => ({ t: MOD[k].t, c: MOD[k].c })));
+  groupedBars(c1, merged, MK.map(k => ({ k, sk: k + '_sem', c: MOD[k].c, t: MOD[k].t })), { dots: true });
+  finding(c1, MK.map(k => `<b>${MOD[k].t}</b>: r(sprzężenie, MW z) = ${fmt(S[k].r_mwz.r, 3)}, ${pval(S[k].r_mwz.p)}; wewnątrz osoby średnie r = ${fmt(S[k].within.mean_r, 3)} (t = ${S[k].within.t}, ${pval(S[k].within.p)}, ${S[k].within.n} osób)`).join('<br>'));
+  tableView(c1, merged, [{ key: 'label', label: 'MW' }, { key: 'n', label: 'n' }, { key: 'pl', label: 'polski', f: v => fmt(v, 3) }, { key: 'pl_sem', label: 'SEM', f: v => fmt(v, 3) }, { key: 'mini', label: 'MiniLM', f: v => fmt(v, 3) }, { key: 'mini_sem', label: 'SEM', f: v => fmt(v, 3) }]);
+  const c2 = card(grid, 'Sprzężenie centroid', 'Ten sam podział, miara na średnich wektorach.');
+  legend(c2, MK.map(k => ({ t: MOD[k].t, c: MOD[k].c })));
+  groupedBars(c2, merged, [{ k: 'plc', sk: 'plc_sem', c: MOD.pl.c, t: MOD.pl.t }, { k: 'minic', sk: 'minic_sem', c: MOD.mini.c, t: MOD.mini.t }], { dots: true });
+  finding(c2, `Centroid jest wyższy od max, bo uśrednianie wygładza zdania nie na temat; kształt zależności od MW ten sam.`);
+  tableView(c2, merged, [{ key: 'label', label: 'MW' }, { key: 'n', label: 'n' }, { key: 'plc', label: 'polski', f: v => fmt(v, 3) }, { key: 'plc_sem', label: 'SEM', f: v => fmt(v, 3) }, { key: 'minic', label: 'MiniLM', f: v => fmt(v, 3) }, { key: 'minic_sem', label: 'SEM', f: v => fmt(v, 3) }]);
+}
+
+// ===== 2. distribution per experiment
+{
+  const grid = section('dist', '2 · Rozkład sprzężenia w eksperymentach', 'Histogram sprzężenia max (udział relacji w przedziale 0,025). Przerywana linia = średnie sprzężenie tej samej relacji z pozostałymi 39 fragmentami, czyli poziom „przypadkowej” bliskości do bajki w ogóle.',
+    WNIOSEK_DIST());
+  for (const k of MK) {
+    const s = S[k], e = s.hist_edges;
+    const c = card(grid, MOD[k].t, modelName(k));
+    legend(c, [{ t: EXP.Exp1_Cued.name, c: EXP.Exp1_Cued.c, line: true }, { t: EXP.Exp2_Preference.name, c: EXP.Exp2_Preference.c, line: true }, { t: 'inne fragmenty (średnia)', c: '--muted', line: true }]);
+    const series = ['1', '2'].map(x => ({ e: x, p: s.by_exp[x].hist.map(v => v / s.by_exp[x].n) }));
+    const nz = d3.range(e.length - 1).filter(i => series.some(se => se.p[i] > 0));
+    const xd = [e[Math.max(0, nz[0] - 1)], e[Math.min(e.length - 1, nz[nz.length - 1] + 2)]];
+    const f = frame(c.node(), 560, 210, { l: 52, t: 10, r: 8, b: 40 });
+    const x = d3.scaleLinear().domain(xd).range([0, f.w]);
+    const y = d3.scaleLinear().domain([0, d3.max(series, se => d3.max(se.p)) * 1.1]).nice().range([f.h, 0]);
+    yGrid(f.g, y, f.w, 4); xAxis(f.g, x, f.h, x.ticks(6), d => d.toFixed(2)); axisTitle(f.g, 'sprzężenie max (cosinus)', f.w, f.h, 'x');
+    for (const se of series) {
+      const col = css(se.e === '1' ? EXP.Exp1_Cued.c : EXP.Exp2_Preference.c);
+      const pts = se.p.map((v, i) => ({ x: (e[i] + e[i + 1]) / 2, v })).filter(d => d.x >= xd[0] && d.x <= xd[1]);
+      f.g.append('path').datum(pts).attr('fill', col).attr('opacity', .12).attr('d', d3.area().curve(d3.curveMonotoneX).x(d => x(d.x)).y0(f.h).y1(d => y(d.v)));
+      f.g.append('path').datum(pts).attr('fill', 'none').attr('stroke', col).attr('stroke-width', 2).attr('d', d3.line().curve(d3.curveMonotoneX).x(d => x(d.x)).y(d => y(d.v)));
+      const m = s.by_exp[se.e].mean;
+      f.g.append('line').attr('x1', x(m)).attr('x2', x(m)).attr('y1', 0).attr('y2', f.h).attr('stroke', col).attr('stroke-width', 1.5);
+    }
+    const o = s.own_vs_other.other;
+    f.g.append('line').attr('x1', x(o)).attr('x2', x(o)).attr('y1', 0).attr('y2', f.h).attr('stroke', css('--muted')).attr('stroke-width', 1.5).attr('stroke-dasharray', '4 3');
+    finding(c, `Średnia: Exp1 ${fmt(s.by_exp['1'].mean, 3)} (SD ${fmt(s.by_exp['1'].sd, 3)}, n = ${s.by_exp['1'].n}), Exp2 ${fmt(s.by_exp['2'].mean, 3)} (SD ${fmt(s.by_exp['2'].sd, 3)}, n = ${s.by_exp['2'].n}). Własny fragment ${fmt(s.own_vs_other.own, 3)} vs inne ${fmt(o, 3)}; własny wyżej w ${pct(s.own_vs_other.share_own_higher)} relacji.`);
+    const rows = d3.range(e.length - 1).filter(i => series.some(se => se.p[i] > 0)).map(i => ({ bin: `${e[i].toFixed(3)}–${e[i + 1].toFixed(3)}`, a: s.by_exp['1'].hist[i], b: s.by_exp['2'].hist[i] }));
+    tableView(c, rows, [{ key: 'bin', label: 'sprzężenie' }, { key: 'a', label: 'Exp1 (n)' }, { key: 'b', label: 'Exp2 (n)' }]);
+  }
+}
+
+// ===== 3. models against each other
+{
+  const grid = section('models', '3 · Dwa modele: czy mierzą to samo', 'Każda kropka to jedna relacja: sprzężenie max według modelu polskiego (oś X) i MiniLM z kodu mentora (oś Y). Kliknij kropkę, żeby otworzyć relację w przeglądarce niżej.',
+    WNIOSEK_MODELS());
+  const c = card(grid, 'Sprzężenie max: polski vs MiniLM', `r Pearsona = ${fmt(S.models_r.r, 3)}, ρ Spearmana = ${fmt(S.models_r.rho, 3)}, n = ${R.length}`, { wide: true });
+  const f = frame(c.node(), 900, 380, { l: 56, t: 10, r: 12, b: 44 });
+  const ex = d3.extent(R, r => r.m.pl.cmax), ey = d3.extent(R, r => r.m.mini.cmax);
+  const x = d3.scaleLinear().domain(ex).nice().range([0, f.w]);
+  const y = d3.scaleLinear().domain(ey).nice().range([f.h, 0]);
+  yGrid(f.g, y, f.w, 6); xAxis(f.g, x, f.h, x.ticks(8), d => d.toFixed(2));
+  axisTitle(f.g, 'polski mpnet', f.w, f.h, 'x'); axisTitle(f.g, 'MiniLM', f.w, f.h, 'y');
+  const lo = Math.max(x.domain()[0], y.domain()[0]), hi = Math.min(x.domain()[1], y.domain()[1]);
+  f.g.append('line').attr('x1', x(lo)).attr('y1', y(lo)).attr('x2', x(hi)).attr('y2', y(hi)).attr('stroke', css('--axis')).attr('stroke-dasharray', '4 3');
+  const dots = f.g.append('g').selectAll('circle').data(R).join('circle').attr('cx', r => x(r.m.pl.cmax)).attr('cy', r => y(r.m.mini.cmax)).attr('r', 2.6).attr('fill', css('--s7')).attr('opacity', .4).style('cursor', 'pointer');
+  hover(dots, r => `<b>${r.s} · trial ${r.t} · ${r.f}</b><br>polski ${fmt(r.m.pl.cmax, 3)} · MiniLM ${fmt(r.m.mini.cmax, 3)} · MW ${r.mw}${snip(r, 160)}`);
+  dots.on('click', (ev, r) => { hideTip(); selectRecall(r.i, true); });
+  finding(c, 'Linia przerywana = y = x. Punkty daleko od chmury to relacje, w których modele się nie zgadzają. Wśród 40 najbardziej odstających są częściej jednozdaniowe (średnio 1,4 zdania wobec 2,0) i częściej o samym stanie uwagi.');
+  tableView(c, [...R].sort((a, b) => a.m.pl.cmax - b.m.pl.cmax), [{ key: 's', label: 'osoba' }, { key: 't', label: 'trial' }, { key: 'f', label: 'fragment' }, { key: 'mw', label: 'MW' }, { key: 'm', label: 'polski', f: v => fmt(v.pl.cmax, 3) }, { key: 'm', label: 'MiniLM', f: v => fmt(v.mini.cmax, 3) }]);
+}
+
+// ===== 4. specificity
+{
+  const grid = section('spec', '4 · Specyficzność: czy relacja wskazuje swój fragment', 'Dla każdej relacji: miejsce jej własnego fragmentu wśród wszystkich 40, ułożonych po podobieństwie centroidów (1 = relacja jest najbliższa właśnie temu, co osoba słyszała). Losowo każde miejsce ma 1/40 = 2,5 %.',
+    WNIOSEK_SPEC());
+  d3.select(grid).style('grid-template-columns', 'repeat(auto-fit, minmax(min(460px, 100%), 1fr))');
+  const c = card(grid, 'Miejsce własnego fragmentu (1–40)', 'Liczba relacji na każdym miejscu.', { wide: true });
+  legend(c, MK.map(k => ({ t: MOD[k].t, c: MOD[k].c })));
+  const rows = d3.range(40).map(i => ({ label: String(i + 1), n: S.pl.spec_hist[i] + S.mini.spec_hist[i], pl: S.pl.spec_hist[i], mini: S.mini.spec_hist[i] }));
+  const f = frame(c.node(), 900, 220, { l: 52, t: 10, r: 8, b: 40 });
+  const x = d3.scaleBand().domain(rows.map(r => r.label)).range([0, f.w]).paddingInner(0.2);
+  const xs = d3.scaleBand().domain(MK).range([0, x.bandwidth()]).paddingInner(0.1);
+  const y = d3.scaleLinear().domain([0, d3.max(rows, r => Math.max(r.pl, r.mini)) * 1.05]).nice().range([f.h, 0]);
+  yGrid(f.g, y, f.w, 4); f.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f.w).attr('y1', f.h).attr('y2', f.h);
+  f.g.append('g').selectAll('text').data(rows.filter(r => r.label === '1' || +r.label % 5 === 0)).join('text').attr('class', 'tick').attr('x', r => x(r.label) + x.bandwidth() / 2).attr('y', f.h + 16).attr('text-anchor', 'middle').text(r => r.label);
+  axisTitle(f.g, 'miejsce własnego fragmentu', f.w, f.h, 'x');
+  for (const k of MK) {
+    const g = f.g.append('g').selectAll('rect').data(rows).join('rect').attr('x', r => x(r.label) + xs(k)).attr('y', r => y(r[k])).attr('width', xs.bandwidth()).attr('height', r => f.h - y(r[k])).attr('fill', css(MOD[k].c));
+    hover(g, r => `<b>miejsce ${r.label}</b> · ${MOD[k].t}<br>${r[k]} relacji (${pct(r[k] / R.length)})`);
+  }
+  finding(c, MK.map(k => `<b>${MOD[k].t}</b>: własny fragment na 1. miejscu w ${pct(S[k].spec1)} relacji (losowo 2,5 %).`).join('<br>'));
+  tableView(c, rows, [{ key: 'label', label: 'miejsce' }, { key: 'pl', label: 'polski' }, { key: 'mini', label: 'MiniLM' }]);
+
+  const c2 = card(grid, 'Własny fragment na 1. miejscu, wg MW', 'Udział relacji, które najbardziej przypominają właśnie usłyszany fragment.');
+  legend(c2, MK.map(k => ({ t: MOD[k].t, c: MOD[k].c })));
+  const bm = S.pl.by_mw.map((b, i) => ({ label: b.label, n: b.n, pl: b.spec1, mini: S.mini.by_mw[i].spec1 }));
+  groupedBars(c2, bm, MK.map(k => ({ k, c: MOD[k].c, t: MOD[k].t })), { dec: 2 });
+  tableView(c2, bm, [{ key: 'label', label: 'MW' }, { key: 'n', label: 'n' }, { key: 'pl', label: 'polski', f: pct }, { key: 'mini', label: 'MiniLM', f: pct }]);
+
+  const c3 = card(grid, 'Własny vs poprzedni fragment', 'Sprzężenie max z właśnie usłyszanym fragmentem i z poprzednim fragmentem tej samej historii (KAROLINA_5 → KAROLINA_4); pierwsze fragmenty bez poprzednika pominięte.');
+  const pr = MK.map(k => ({ label: MOD[k].t, n: S[k].own_vs_prev.n, own: S[k].own_vs_prev.own, prev: S[k].own_vs_prev.prev, t: S[k].own_vs_prev.t, p: S[k].own_vs_prev.p }));
+  legend(c3, [{ t: 'własny fragment', c: '--s1' }, { t: 'poprzedni fragment', c: '--muted' }]);
+  groupedBars(c3, pr, [{ k: 'own', c: '--s1', t: 'własny' }, { k: 'prev', c: '--muted', t: 'poprzedni' }], { xTitle: 'model', dots: true, connect: false });
+  finding(c3, pr.map(r => `<b>${r.label}</b>: ${fmt(r.own, 3)} vs ${fmt(r.prev, 3)}, t = ${r.t}, ${pval(r.p)}, n = ${r.n}`).join('<br>'));
+  tableView(c3, pr, [{ key: 'label', label: 'model' }, { key: 'n', label: 'n' }, { key: 'own', label: 'własny', f: v => fmt(v, 3) }, { key: 'prev', label: 'poprzedni', f: v => fmt(v, 3) }, { key: 't', label: 't' }]);
+}
+
+// ===== 5. recall browser (not in the shared build: it is the recall texts)
+if (!SHARE) {
+  const grid = section('browser', '5 · Przeglądarka relacji', 'Relacje posortowane po sprzężeniu max. Kliknij relację: obok jej fragment z podświetlonym zdaniem, które najlepiej pasuje, i cztery miary dla obu modeli. Kliknij zdanie relacji, żeby zobaczyć jego najlepsze dopasowanie.',
+    WNIOSEK_BROWSER());
+  d3.select(grid).classed('one', true);
+  const c = card(grid, 'Relacje', null, { wide: true });
+  const fl = c.append('div').attr('class', 'filters');
+  fl.append('label').html('model <select id="bModel"><option value="pl">polski mpnet</option><option value="mini">MiniLM (mentor)</option></select>');
+  fl.append('label').html('kolejność <select id="bSort"><option value="asc">od najniższego sprzężenia</option><option value="desc">od najwyższego</option></select>');
+  fl.append('label').html('eksperyment <select id="bExp"><option value="0">oba</option><option value="1">Exp1</option><option value="2">Exp2</option></select>');
+  if (LB) fl.append('label').html('kategoria <select id="bCat"><option value="">wszystkie</option>' + LB.cats.map(k => `<option value="${k}">${CATN[k]}</option>`).join('') + '</select>');
+  fl.append('span').attr('id', 'bCount').attr('class', 'muted');
+  const two = c.append('div').attr('class', 'two').style('grid-template-columns', 'minmax(280px, 1fr) 2.6fr');
+  const list = two.append('div').attr('class', 'rl');
+  const det = two.append('div');
+  let cur = null, curSent = null;
+  const val = id => document.getElementById(id).value;
+
+  function renderList() {
+    const k = val('bModel'), dir = val('bSort') === 'asc' ? 1 : -1, e = +val('bExp'), cat = LB ? val('bCat') : '';
+    const rows = R.filter(r => (!e || r.e === e) && (!cat || (LBR(r.i) && LBR(r.i)[0] === cat))).sort((a, b) => dir * (a.m[k].cmax - b.m[k].cmax));
+    document.getElementById('bCount').textContent = `${rows.length} relacji`;
+    const ext = d3.extent(R, r => r.m[k].cmax);
+    const w = d3.scaleLinear().domain(ext).range([4, 60]);
+    list.selectAll('div.rr').data(rows, r => r.i).join('div').attr('class', 'rr').classed('sel', r => r.i === cur)
+      .html(r => `<span>${fmt(r.m[k].cmax, 3)}</span><span><div class="bar" style="width:${w(r.m[k].cmax)}px"></div></span><span class="txt">${catDot(LBR(r.i) && LBR(r.i)[0])}<b>MW ${r.mw}</b> · ${r.f} · ${r.rs.join(' ')}</span>`)
+      .on('click', (ev, r) => selectRecall(r.i));
+    list.selectAll('div.rr').order();
+  }
+
+  function renderDetail() {
+    const r = R[cur], k = val('bModel'), fr = FR[r.f], best = r.m[k].best;
+    if (curSent == null) curSent = d3.maxIndex(best, b => b[1]);
+    const hitAll = new Set(best.map(b => b[0])), hit = best[curSent][0];
+    det.html('');
+    det.append('h3').html(`${r.s} · trial ${r.t} · ${r.f} <span class="pill">${EXP[r.e === 1 ? 'Exp1_Cued' : 'Exp2_Preference'].name}</span> <span class="pill">MW osoby (sonda) ${r.mw}</span>${r.tr ? `<span class="pill">${r.tr === 'T' ? 'TRACKED' : 'UNTRACKED'}</span>` : ''}${RATE && RATE.per_recall[r.i] != null ? `<span class="pill">MW wg Haiku ${RATE.per_recall[r.i]}</span>` : ''}`);
+    const lb = LBR(r.i);
+    if (lb) det.append('div').attr('class', 'muted').style('margin', '-2px 0 8px').html(`${catDot(lb[0])}<b style="color:var(--ink)">${CATN[lb[0]]}</b>${lb[1].length ? ' · też: ' + lb[1].map(k => CATN[k]).join(', ') : ''} · „${lb[3]}” · pewność ${fmt(lb[2], 2)}${RATE && RATE.reason[r.i] ? `<br>Haiku, uzasadnienie oceny ${RATE.per_recall[r.i]}: ${RATE.reason[r.i]}` : ''}`);
+    const t3 = det.append('div').attr('class', 'three');
+    const a = t3.append('div'); a.append('h3').text('Relacja');
+    a.append('div').attr('class', 'story sents').selectAll('span').data(r.rs).join('span').attr('class', (s, i) => 'rs' + (i === curSent ? ' on' : ''))
+      .html((s, i) => `${s}<small>${fmt(best[i][1], 3)}</small>`).on('click', (ev, s) => { curSent = r.rs.indexOf(s); renderDetail(); });
+    const b = t3.append('div'); b.append('h3').html(`Fragment <span class="pill">${fr.hero}</span>`);
+    b.append('div').attr('class', 'story sents').selectAll('span').data(fr.ss).join('span').attr('class', (s, j) => j === hit ? 'hit' : hitAll.has(j) ? 'hit2' : null).text(s => s);
+    const cc = t3.append('div'); cc.append('h3').text('Najlepiej pasujące zdanie bajki');
+    cc.append('div').attr('class', 'best').text(fr.ss[hit]);
+    cc.append('div').attr('class', 'muted').style('margin', '4px 0 12px').text(`cosinus ${fmt(best[curSent][1], 3)} ze zdaniem relacji nr ${curSent + 1} (${MOD[k].t})`);
+    const t = cc.append('table').attr('class', 'tv');
+    t.append('thead').append('tr').selectAll('th').data(['miara', 'polski', 'MiniLM']).join('th').text(d => d);
+    const rows = [['sprzężenie max', m => fmt(m.cmax, 3)], ['sprzężenie centroid', m => fmt(m.cent, 3)], ['specyficzność (miejsce /40)', m => m.spec], ['sprzężenie z poprzednim', m => fmt(m.prev, 3)]];
+    t.append('tbody').selectAll('tr').data(rows).join('tr').selectAll('td').data(([l, g]) => [l, g(r.m.pl), g(r.m.mini)]).join('td').text(d => d ?? '–');
+    cc.append('div').attr('class', 'muted').style('margin-top', '6px').text(fr.prev ? `poprzedni fragment: ${fr.prev}` : 'pierwszy fragment historii: brak poprzedniego');
+  }
+
+  selectRecall = (i, scroll = false) => {
+    cur = i; curSent = null; renderList(); renderDetail();
+    if (scroll) { document.getElementById('browser').scrollIntoView({ behavior: 'smooth' }); const n = list.selectAll('div.rr').filter(r => r.i === i).node(); if (n) n.scrollIntoView({ block: 'nearest' }); }
+  };
+  ['bModel', 'bSort', 'bExp', 'bCat'].filter(id => document.getElementById(id)).forEach(id => document.getElementById(id).addEventListener('change', () => { curSent = null; renderList(); if (cur != null) renderDetail(); }));
+  renderList();
+  selectRecall(list.select('div.rr').datum().i);
+}
+
+// ===== 6. recalled seconds vs pupil
+// ===== pupil guide: how to read sections 6–8 and what they found together
+if (D.timing || D.wordpupil) {
+  const TS = D.timing && D.timing.summary, TRI = D.timing && D.timing.triad, WP = D.wordpupil;
+  const pair = (a, b) => TRI && TRI.pl.pairs.find(p => p.a === a && p.b === b);
+  const sdPct = WP ? WP.meta.sd_pct_median : null;
+  const wMinP = WP ? d3.min(['all', 'content', 'function', 'sent_first'].flatMap(k => WP.cats[k].windows.map(w => w.p))) : null;
+  const res = [];
+  if (TS) res.push(`<b>Sekcja 6, zdanie po zdaniu.</b> Zdania, które wróciły w relacji, nie miały w trakcie słuchania szerszej ani węższej źrenicy niż pozostałe (po odjęciu wspólnego przebiegu ${pval(TS.pl.dz.p)}).`);
+  if (TRI) res.push(`<b>Sekcja 7, cała próba.</b> Średnia źrenica w próbie nie wiąże się z MW (r = ${fmt(pair('pupil', 'mw').r, 3)}) ani z tym, na ile relacja jest o bajce (r = ${fmt(pair('pupil', 'cmax').r, 3)}). MW i tekst relacji wiążą się ze sobą (r = ${fmt(pair('mw', 'cmax').r, 3)}, ${pval(pair('mw', 'cmax').p)}).`);
+  if (WP) res.push(`<b>Sekcja 8, słowo po słowie.</b> Źrenica minimalnie reaguje na słowa bajki (setne części SD), ale tak samo przy wysokim i niskim MW (najmniejsze p = ${fmt(wMinP, 2)}).`);
+  const grid = section('pupil-guide', 'Źrenica: jak czytać sekcje 6–8', 'Przewodnik przed trzema sekcjami o źrenicy: co mierzymy, w jakich jednostkach, względem czego liczony jest „minus” i co wyszło ze wszystkich trzech razem.',
+    `W żadnej z trzech analiz rozmiar źrenicy nie odróżnia wysokiego MW od niskiego. Odpływanie widać w tym, o czym ludzie potem mówią (tekst relacji), a nie w ich źrenicy w trakcie słuchania.`);
+  const g1 = card(grid, 'Co mierzymy').classed('guide', true);
+  g1.append('p').html('EyeLink mierzy rozmiar źrenicy lewego oka 100 razy na sekundę (prawego, gdy lewego brak). Źrenica <b>rozszerza się</b> przy wysiłku umysłowym, napięciu i zaskoczeniu, z opóźnieniem około 0,5–1,5 s. <b>Zwęża się</b> przy jaśniejszym świetle, ale tu ekran przez cały czas pokazuje ten sam krzyżyk, więc światło się nie zmienia.');
+  g1.append('p').html('Mrugnięcia to dziury w danych, a nie zera. Próby, w których brakuje ponad połowy pomiarów, są pominięte.');
+  const g2 = card(grid, 'Jednostka: SD tej osoby').classed('guide', true);
+  g2.append('p').html(`Surowe liczby z EyeLinka różnią się między ludźmi${WP ? ` (średnio od ${WP.meta.raw_mean_range[0]} do ${WP.meta.raw_mean_range[1]} jednostek)` : ''}, więc każdą osobę przeliczam na jej własną skalę (z): <b>0</b> = jej przeciętny rozmiar, <b>+1</b> = szersza o jedno odchylenie standardowe (SD) niż zwykle, <b>−1</b> = węższa o jedno SD.`);
+  if (sdPct) g2.append('p').html(`Jedno SD to u typowej osoby około <b>${fmt(sdPct, 1)} % rozmiaru źrenicy</b>. Czyli −0,06 na wykresie = węższa o ${fmt(0.06 * sdPct, 1)} % rozmiaru. Wartości rzędu setnych części SD to zmiany, których gołym okiem nie zobaczysz.`);
+  const g3 = card(grid, 'Względem czego jest „minus”').classed('guide', true);
+  g3.append('p').html('<b>Minus</b> zawsze znaczy „węższa niż punkt odniesienia”, <b>plus</b> znaczy „szersza”. Punkt odniesienia zależy od sekcji:');
+  g3.append('p').html('<b>Sekcja 6, „surowe z”</b>: przeciętny rozmiar tej osoby. <b>Sekcja 6, „po odjęciu przebiegu”</b>: przeciętny rozmiar wszystkich prób w tej samej sekundzie fragmentu. Źrenica u wszystkich zwęża się od początku do końca fragmentu i ten wspólny spadek trzeba usunąć, żeby porównywać zdania, a nie ich miejsca we fragmencie.');
+  g3.append('p').html('<b>Sekcja 7</b>: przeciętny rozmiar tej osoby, liczony dla całej próby. <b>Sekcja 8</b>: rozmiar w pół sekundy tuż przed słowem. Ujemne krzywe w sekcji 8 nie znaczą reakcji na słowo, bo losowe chwile opadają tak samo; to ten sam powolny spadek przez fragment.');
+  const g4 = card(grid, 'Słowniczek wykresów').classed('guide', true);
+  g4.append('p').html('<b>Pasmo lub wąs ±1 SEM</b>: niepewność średniej. Dwa pasma, które na siebie nachodzą = różnica, której nie odróżnisz od szumu.');
+  g4.append('p').html('<b>95 % CI</b> (przedział ufności): zakres, w którym prawie na pewno leży prawdziwa wartość. Jeśli nie przecina zera, efekt jest istotny.');
+  g4.append('p').html('<b>p</b>: szansa, że taka różnica wyszłaby przypadkiem, gdyby jej naprawdę nie było. Poniżej 0,05 uznajemy różnicę za istotną. <b>t</b>: różnica podzielona przez jej niepewność; |t| powyżej około 2 to zwykle p < 0,05.');
+  g4.append('p').html('<b>r</b>: korelacja od −1 do +1; 0 = brak związku. <b>Wewnątrz osoby</b>: porównuję próby tej samej osoby ze sobą, a nie ludzi między sobą, bo ludzie bardzo różnią się poziomem MW i rozmiarem źrenicy.');
+  const g5 = card(grid, 'Co wyszło w trzech sekcjach', null, { wide: true }).classed('guide', true);
+  res.forEach(h => g5.append('p').html(h));
+  g5.append('p').html('<b>Co to znaczy.</b> Źrenica nie jest w tych danych wskaźnikiem odpływania. Możliwe powody: MW jest oceniane raz na około 45 s i po fakcie, więc nie wiadomo, kiedy w trakcie fragmentu ktoś odpłynął; ciągła mowa nie ma wyraźnych momentów wysiłku, na które źrenica mogłaby zareagować; efekt może też być za mały, żeby go wykryć na 58 osobach. Brak efektu nie dowodzi, że go nie ma, ale z tych danych go nie wyciągniemy.');
+}
+
+if (D.timing) {
+  const T = D.timing, TS = T.summary, TP = T.per_recall, thr = T.meta.thr, EST = T.meta.onsets !== 'measured';
+  const sp = TS.pl;
+  const WNIOSEK_PUPIL = `W surowym z źrenica w przywołanych sekundach jest węższa niż w pozostałych (${fmt(sp.z.rec, 3)} vs ${fmt(sp.z.not, 3)}, ${pval(sp.z.p)}), ale to efekt pozycji, nie pamięci: ludzie częściej przywołują ostatnie zdanie fragmentu (${pct(sp.last_vs_rest.last)} wobec ${pct(sp.last_vs_rest.rest)} pozostałych), a źrenica zwęża się przez cały fragment. Po odjęciu średniego przebiegu w czasie różnica znika (${fmt(sp.dz.rec, 3)} vs ${fmt(sp.dz.not, 3)}, ${pval(sp.dz.p)}; MiniLM ${pval(TS.mini.dz.p)}) i nie pojawia się w żadnym przedziale MW. Przebieg wokół początku zdania nie odróżnia obu grup: pasma SEM nachodzą na siebie w każdej sekundzie. <b>Średnica źrenicy w trakcie zdania nie przewiduje, czy to zdanie wróci w relacji.</b> Jedyny ślad jest między próbami: próby, w których osoba przywołała cokolwiek, mają nieco węższą źrenicę niż próby bez przywołań (${fmt(sp.between.any, 3)} vs ${fmt(sp.between.none, 3)}, ${pval(sp.between.p)}; w MiniLM ${pval(TS.mini.between.p)}).`;
+  const grid = section('pupil', '6 · Przywołane sekundy a źrenica', `Które zdania fragmentu wróciły w relacji i co w tych sekundach robiła źrenica. Zdanie bajki jest <b>przywołane</b>, gdy jakieś zdanie relacji jest do niego bliższe niż ${100 * T.meta.null_q} % podobieństw do zdań innych fragmentów tej samej historii (próg: polski ${fmt(thr.pl, 3)}, MiniLM ${fmt(thr.mini, 3)}). Średnica źrenicy = z wewnątrz osoby, 1 Hz; „po odjęciu przebiegu” = minus średnia wszystkich prób w tej sekundzie fragmentu. Test sparowany na osobach: średnia osoby w przywołanych vs nieprzywołanych sekundach, tylko próby, które mają oba rodzaje.`,
+    WNIOSEK_PUPIL);
+  if (EST) d3.select(grid).insert('div', ':first-child').attr('class', 'warn').style('grid-column', '1 / -1')
+    .text('Początki zdań są szacowane z udziału znaków zdania w tekście fragmentu razy długość nagrania, nie zmierzone na audio — do czasu wyrównania plików z audioFiles/.');
+
+  const c1 = card(grid, 'Źrenica: przywołane vs nieprzywołane sekundy', `Model polski; ${sp.z.n_trials} prób z obu rodzajami sekund, ${sp.z.n_subj} osób.`);
+  for (const [v, title] of [['z', 'surowe z'], ['dz', 'po odjęciu przebiegu w czasie']]) {
+    const x = sp[v];
+    c1.append('h3').style('margin-top', '6px').text(title);
+    const p = c1.append('div').attr('class', 'pair');
+    p.append('div').html(`<div class="v" style="color:${css('--s3')}">${fmt(x.rec, 3)}</div><div class="l">przywołane sekundy</div>`);
+    p.append('div').html(`<div class="v">${fmt(x.not, 3)}</div><div class="l">nieprzywołane sekundy</div>`);
+    c1.append('div').attr('class', 'pair-t').text(`różnica ${fmt(x.diff, 3)} ± ${fmt(x.sem, 3)} (SEM), t(${x.n_subj - 1}) = ${x.t}, ${pval(x.p)}`);
+  }
+  finding(c1, MK.map(k => `<b>${MOD[k].t}</b>: ${pct(TS[k].share_recalled)} zdań bajki przywołanych; ${TS[k].trials_none} z ${TS[k].n_trials} prób bez żadnego; po odjęciu przebiegu ${fmt(TS[k].dz.diff, 3)}, ${pval(TS[k].dz.p)}, n = ${TS[k].dz.n_trials} prób`).join('<br>'));
+  tableView(c1, MK.flatMap(k => ['z', 'dz'].map(v => ({ m: MOD[k].t, v: v === 'z' ? 'surowe z' : 'po odjęciu', ...TS[k][v] }))),
+    [{ key: 'm', label: 'model' }, { key: 'v', label: 'źrenica' }, { key: 'rec', label: 'przywołane', f: v => fmt(v, 3) }, { key: 'not', label: 'nieprzywołane', f: v => fmt(v, 3) }, { key: 't', label: 't' }, { key: 'p', label: 'p', f: v => fmt(v, 3) }, { key: 'n_subj', label: 'osoby' }, { key: 'n_trials', label: 'próby' }]);
+
+  const c2 = card(grid, 'Różnica wg MW', 'Przywołane minus nieprzywołane sekundy, źrenica po odjęciu przebiegu; ±1 SEM po osobach. Linia przerywana = brak różnicy.');
+  legend(c2, MK.map(k => ({ t: MOD[k].t, c: MOD[k].c })));
+  const bm = sp.by_mw.map((b, i) => ({ label: b.label, n: b.n_trials, pl: b.diff, pl_sem: b.sem, mini: TS.mini.by_mw[i].diff, mini_sem: TS.mini.by_mw[i].sem, p_pl: b.p, p_mini: TS.mini.by_mw[i].p, s_pl: b.n_subj }));
+  groupedBars(c2, bm, MK.map(k => ({ k, sk: k + '_sem', c: MOD[k].c, t: MOD[k].t })), { dots: true, connect: false, zero: true });
+  finding(c2, `Żaden przedział nie odchodzi od zera (najmniejsze p = ${fmt(d3.min(bm, b => Math.min(b.p_pl ?? 1, b.p_mini ?? 1)), 2)}). Przy MW 76–99 tylko ${bm[4].n} prób, stąd szeroki wąs.`);
+  tableView(c2, bm, [{ key: 'label', label: 'MW' }, { key: 'n', label: 'próby' }, { key: 's_pl', label: 'osoby' }, { key: 'pl', label: 'polski', f: v => fmt(v, 3) }, { key: 'p_pl', label: 'p', f: v => fmt(v, 3) }, { key: 'mini', label: 'MiniLM', f: v => fmt(v, 3) }, { key: 'p_mini', label: 'p', f: v => fmt(v, 3) }]);
+
+  const c3 = card(grid, 'Źrenica wokół początku zdania', `Średni przebieg po odjęciu przebiegu w czasie, wyrównany do ${EST ? 'szacowanego' : 'zmierzonego na nagraniu'} początku zdania (0 s); średnia osób ± SEM. Model polski; pierwsze zdanie fragmentu pominięte (jego początek to reakcja na start nagrania).`, { wide: true });
+  legend(c3, [{ t: `przywołane zdania (${sp.aligned.rec.n_events})`, c: '--s3', line: true }, { t: `nieprzywołane (${sp.aligned.not.n_events})`, c: '--muted', line: true }]);
+  {
+    const lags = T.meta.lags, f = frame(c3.node(), 900, 240, { l: 64, t: 10, r: 12, b: 40 });
+    const x = d3.scaleLinear().domain(d3.extent(lags)).range([0, f.w]);
+    const all = ['rec', 'not'].flatMap(g => sp.aligned[g].mean.flatMap((m, i) => [m - sp.aligned[g].sem[i], m + sp.aligned[g].sem[i]]));
+    const y = d3.scaleLinear().domain(d3.extent(all.concat([0]))).nice().range([f.h, 0]);
+    yGrid(f.g, y, f.w, 4); xAxis(f.g, x, f.h, lags, d => d + ' s'); axisTitle(f.g, 'czas od początku zdania', f.w, f.h, 'x');
+    f.g.append('text').attr('class', 'axis-title').attr('transform', `translate(-50,${f.h / 2}) rotate(-90)`).attr('text-anchor', 'middle').text('źrenica (z)');
+    f.g.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', 0).attr('y2', f.h).attr('stroke', css('--ink-2')).attr('stroke-dasharray', '4 3');
+    for (const [g, col] of [['not', '--muted'], ['rec', '--s3']]) {
+      const pts = lags.map((l, i) => ({ l, m: sp.aligned[g].mean[i], s: sp.aligned[g].sem[i] }));
+      f.g.append('path').datum(pts).attr('fill', css(col)).attr('opacity', .15).attr('d', d3.area().x(d => x(d.l)).y0(d => y(d.m - d.s)).y1(d => y(d.m + d.s)));
+      f.g.append('path').datum(pts).attr('fill', 'none').attr('stroke', css(col)).attr('stroke-width', 2).attr('d', d3.line().x(d => x(d.l)).y(d => y(d.m)));
+      hover(f.g.append('g').selectAll('circle').data(pts).join('circle').attr('cx', d => x(d.l)).attr('cy', d => y(d.m)).attr('r', 3.5).attr('fill', css(col)),
+        d => `<b>${d.l} s</b> · ${g === 'rec' ? 'przywołane' : 'nieprzywołane'}<br>${fmt(d.m, 3)} ± ${fmt(d.s, 3)}`);
+    }
+    const post = lags.map((l, i) => i).filter(i => lags[i] >= 0), lo = d3.minIndex(post, i => sp.aligned.rec.mean[i]);
+    finding(c3, `Gdyby słuchanie zdania, które potem wróci w relacji, angażowało więcej, zielona linia rosłaby po 0 s. Nie rośnie, raczej lekko spada (najniżej ${fmt(sp.aligned.rec.mean[post[lo]], 3)} przy ${lags[post[lo]]} s), a po początku zdania pasma SEM obu linii nachodzą na siebie w każdej sekundzie. Linie się przecinają; cała rozpiętość to mniej niż 0,15 z.`);
+    tableView(c3, lags.map((l, i) => ({ l, r: sp.aligned.rec.mean[i], rs: sp.aligned.rec.sem[i], n: sp.aligned.not.mean[i], ns: sp.aligned.not.sem[i] })),
+      [{ key: 'l', label: 's od początku' }, { key: 'r', label: 'przywołane', f: v => fmt(v, 3) }, { key: 'rs', label: 'SEM', f: v => fmt(v, 3) }, { key: 'n', label: 'nieprzywołane', f: v => fmt(v, 3) }, { key: 'ns', label: 'SEM', f: v => fmt(v, 3) }]);
+  }
+
+  // trial viewer
+  if (!SHARE) {
+  const c4 = card(grid, 'Przeglądarka prób', `Średnica źrenicy (z wewnątrz osoby) w czasie fragmentu; pasma = zdania bajki (${EST ? 'szacowany czas' : 'czas zmierzony na nagraniu'}), wypełnione = przywołane. Obok relacja i podobieństwo każdego zdania bajki do relacji.`, { wide: true });
+  const fl = c4.append('div').attr('class', 'filters');
+  fl.append('label').html('model <select id="tModel"><option value="pl">polski mpnet</option><option value="mini">MiniLM (mentor)</option></select>');
+  fl.append('label').html('kolejność <select id="tSort"><option value="desc">od najwyższego sprzężenia</option><option value="asc">od najniższego</option></select>');
+  fl.append('span').attr('id', 'tCount').attr('class', 'muted');
+  const two = c4.append('div').attr('class', 'two').style('grid-template-columns', 'minmax(260px, 1fr) 2.6fr');
+  const list = two.append('div').attr('class', 'rl');
+  const det = two.append('div');
+  const val = id => document.getElementById(id).value;
+  const withPupil = R.filter(r => TP[r.i].pz && TP[r.i].pz.some(v => v != null));
+  let tcur = null;
+
+  function renderTList() {
+    const k = val('tModel'), dir = val('tSort') === 'asc' ? 1 : -1;
+    const rows = [...withPupil].sort((a, b) => dir * (a.m[k].cmax - b.m[k].cmax));
+    document.getElementById('tCount').textContent = `${rows.length} relacji z danymi źrenicy`;
+    list.selectAll('div.rr').data(rows, r => r.i).join('div').attr('class', 'rr').classed('sel', r => r.i === tcur)
+      .html(r => { const n = TP[r.i].sim[k].filter(v => v >= thr[k]).length; return `<span>${fmt(r.m[k].cmax, 3)}</span><span>${n}/${TP[r.i].sim[k].length}</span><span class="txt"><b>MW ${r.mw}</b> · ${r.f} · ${r.rs.join(' ')}</span>`; })
+      .on('click', (ev, r) => { tcur = r.i; renderTList(); renderTDetail(); });
+    list.selectAll('div.rr').order();
+  }
+
+  function renderTDetail() {
+    const r = R[tcur], k = val('tModel'), tp = TP[tcur], fr = FR[r.f], ed = T.edges[r.f].map(e => e * tp.L), sim = tp.sim[k];
+    const rec = sim.map(v => v >= thr[k]);
+    det.html('');
+    det.append('h3').html(`${r.s} · trial ${r.t} · ${r.f} <span class="pill">MW ${r.mw}</span> <span class="pill">sprzężenie ${fmt(r.m[k].cmax, 3)}</span> <span class="pill">przywołane ${rec.filter(Boolean).length}/${rec.length}</span>`);
+    const f = frame(det.node(), 900, 220, { l: 46, t: 8, r: 10, b: 38 });
+    const x = d3.scaleLinear().domain([0, tp.L]).range([0, f.w]);
+    const pts = tp.pz.map((v, s) => ({ s: s + 0.5, v })).filter(d => d.s < tp.L);
+    const ex = d3.extent(pts.filter(d => d.v != null), d => d.v);
+    const y = d3.scaleLinear().domain([Math.min(-2, ex[0]), Math.max(2, ex[1])]).nice().range([f.h, 0]);
+    const bands = f.g.append('g').selectAll('rect').data(fr.ss.map((s, j) => ({ j, a: ed[j], b: ed[j + 1], s, v: sim[j], rec: rec[j] }))).join('rect')
+      .attr('x', d => x(d.a) + 1).attr('width', d => Math.max(1, x(d.b) - x(d.a) - 2)).attr('y', 0).attr('height', f.h).attr('rx', 4)
+      .attr('fill', d => d.rec ? css('--s3') : css('--grid')).attr('opacity', d => d.rec ? .35 : .45);
+    hover(bands, d => `<b>zdanie ${d.j + 1}</b> · ${fmt(d.a, 1)}–${fmt(d.b, 1)} s (szac.)<br>podobieństwo ${fmt(d.v, 3)}${d.rec ? ' · <b>przywołane</b>' : ''}<br>${d.s}`);
+    f.g.append('g').selectAll('text').data(fr.ss.map((s, j) => ({ j, m: (ed[j] + ed[j + 1]) / 2 }))).join('text').attr('class', 'tick').attr('x', d => x(d.m)).attr('y', 12).attr('text-anchor', 'middle').text(d => d.j + 1);
+    yGrid(f.g, y, f.w, 4); xAxis(f.g, x, f.h, x.ticks(9), d => d + ' s'); axisTitle(f.g, EST ? 'czas fragmentu (szacowany)' : 'czas fragmentu', f.w, f.h, 'x');
+    f.g.append('line').attr('x1', 0).attr('x2', f.w).attr('y1', y(0)).attr('y2', y(0)).attr('stroke', css('--axis'));
+    f.g.append('path').datum(pts).attr('fill', 'none').attr('stroke', css('--s7')).attr('stroke-width', 2).attr('d', d3.line().defined(d => d.v != null).x(d => x(d.s)).y(d => y(d.v)));
+    const t2 = det.append('div').attr('class', 'two').style('margin-top', '8px');
+    const a = t2.append('div'); a.append('h3').text('Relacja');
+    a.append('div').attr('class', 'story sents').selectAll('span').data(r.rs).join('span').text(s => s);
+    const b = t2.append('div'); b.append('h3').html(`Zdania fragmentu <span class="muted">(próg ${fmt(thr[k], 3)})</span>`);
+    b.append('div').attr('class', 'story sents').style('max-height', 'none').selectAll('span').data(fr.ss).join('span').attr('class', (s, j) => rec[j] ? 'rec' : null)
+      .html((s, j) => `<b>${j + 1}.</b> ${s}<small>${fmt(sim[j], 3)}</small>`);
+  }
+
+  ['tModel', 'tSort'].forEach(id => document.getElementById(id).addEventListener('change', () => { renderTList(); if (tcur != null) renderTDetail(); }));
+  renderTList();
+  tcur = list.select('div.rr').datum().i; renderTList(); renderTDetail();
+  }
+}
+
+// ===== 7. pupil x MW x coupling per trial
+if (D.timing && D.timing.triad) {
+  const TR = D.timing.triad, V = { pupil: 'Źrenica', mw: 'MW', cmax: 'Tekst' };
+  const pr = (k, a, b) => TR[k].pairs.find(p => p.a === a && p.b === b), rg = (k, x) => TR[k].reg.find(c => c.x === x);
+  const pm = pr('pl', 'mw', 'cmax'), mm = pr('mini', 'mw', 'cmax');
+  const WNIOSEK_TRIAD = `Z trzech par związana jest tylko jedna: <b>MW i tekst</b>. Im wyższe MW w odpowiedzi na sondę, tym relacja dalej od fragmentu (r = ${fmt(pm.r, 3)}, ${pval(pm.p)}; MiniLM ${fmt(mm.r, 3)}, ${pval(mm.p)}). Policzone osobno w każdej osobie daje to samo w MiniLM (${pval(mm.p_subj)}), a w modelu polskim jest na granicy (${pval(pm.p_subj)}). Średnica źrenicy w próbie nie wiąże się ani z MW (r = ${fmt(pr('pl', 'pupil', 'mw').r, 3)}), ani z tekstem (r = ${fmt(pr('pl', 'pupil', 'cmax').r, 3)}). W regresji tekstu na źrenicę i MW naraz zostaje tylko MW (t = ${rg('pl', 'mw').t}; źrenica t = ${rg('pl', 'pupil').t}). To sBERT, a nie źrenica, niesie sygnał zgodny z samooceną. Źrenica jest tu uśredniona po całej próbie; zdanie po zdaniu sprawdza sekcja 6, z tym samym wynikiem.`;
+  const grid = section('triad', '7 · Źrenica · MW · tekst', `Trzy miary jednej próby: <b>źrenica</b> = średnia średnica w próbie, <b>MW</b> = ocena z sondy, <b>tekst</b> = sprzężenie max relacji z fragmentem. Każda w z wewnątrz osoby, więc liczy się tylko to, czy w <i>tej samej osobie</i> próby z wyższą wartością jednej mają wyższą drugą. Próby z relacją i danymi źrenicy (braki ≤ 50 %), osoby z co najmniej 8 takimi próbami: ${TR.pl.n_trials} prób, ${TR.pl.n_subj} osób.`,
+    WNIOSEK_TRIAD);
+
+  const c1 = card(grid, 'Trzy pary', 'Na krawędzi r wewnątrz osoby (wszystkie próby) i średnie r policzone osobno w każdej osobie. Ciągła linia = p < 0,05; przerywana = brak związku. Grubość rośnie z |r|.');
+  c1.append('div').attr('class', 'filters').append('label').html('model <select id="xModel"><option value="pl">polski mpnet</option><option value="mini">MiniLM (mentor)</option></select>');
+  const host = c1.append('div');
+  const tbl = c1.append('div');
+  function renderTri() {
+    const k = document.getElementById('xModel').value, T = TR[k];
+    host.html('');
+    const f = frame(host.node(), 560, 250, { l: 10, t: 10, r: 10, b: 10 });
+    const P = { pupil: [f.w / 2, 24], mw: [70, f.h - 24], cmax: [f.w - 70, f.h - 24] };
+    for (const p of T.pairs) {
+      const [x1, y1] = P[p.a], [x2, y2] = P[p.b], sig = p.p < 0.05, col = css(sig ? MOD[k].c : '--muted');
+      const e = f.g.append('g');
+      e.append('line').attr('x1', x1).attr('y1', y1).attr('x2', x2).attr('y2', y2).attr('stroke', col).attr('stroke-linecap', 'round')
+        .attr('stroke-width', 1.5 + 60 * Math.abs(p.r)).attr('stroke-dasharray', sig ? null : '6 5');
+      const side = p.a === 'pupil' ? (x2 < x1 ? -1 : 1) : 0, an = ['end', 'middle', 'start'][side + 1];
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 + (side ? -10 : 22), dx = 45 * side;
+      e.append('text').attr('x', mx + dx).attr('y', my).attr('text-anchor', an).attr('font-weight', 600).attr('fill', sig ? col : css('--ink-2')).text(`r = ${fmt(p.r, 3)}`);
+      e.append('text').attr('class', 'tick').attr('x', mx + dx).attr('y', my + 15).attr('text-anchor', an).text(pval(p.p));
+      e.append('text').attr('class', 'tick').attr('x', mx + dx).attr('y', my + 29).attr('text-anchor', an).text(`w osobie ${fmt(p.mean_r, 3)}, ${pval(p.p_subj)}`);
+      e.selectAll('text').attr('paint-order', 'stroke').attr('stroke', css('--surface')).attr('stroke-width', 5).attr('stroke-linejoin', 'round');
+      hover(e, () => `<b>${V[p.a]} – ${V[p.b]}</b><br>r = ${fmt(p.r, 3)}, ${pval(p.p)} (${T.n_trials} prób)<br>średnie r w osobie ${fmt(p.mean_r, 3)}, t(${p.n_subj - 1}) = ${p.t}, ${pval(p.p_subj)}`);
+    }
+    for (const [v, [x, y]] of Object.entries(P)) {
+      f.g.append('circle').attr('cx', x).attr('cy', y).attr('r', 20).attr('fill', css('--surface')).attr('stroke', css('--ink-2')).attr('stroke-width', 1.5);
+      f.g.append('text').attr('x', x).attr('y', y + (v === 'pupil' ? -26 : 38)).attr('text-anchor', 'middle').attr('font-weight', 600).attr('fill', css('--ink')).text(V[v]);
+    }
+    tbl.html('');
+    tableView(tbl, T.pairs.map(p => ({ ...p, pair: `${V[p.a]} – ${V[p.b]}` })), [{ key: 'pair', label: 'para' }, { key: 'r', label: 'r', f: v => fmt(v, 3) }, { key: 'p', label: 'p', f: v => fmt(v, 4) }, { key: 'mean_r', label: 'śr. r w osobie', f: v => fmt(v, 3) }, { key: 't', label: 't' }, { key: 'p_subj', label: 'p', f: v => fmt(v, 4) }, { key: 'n_subj', label: 'osoby' }]);
+  }
+  document.getElementById('xModel').addEventListener('change', renderTri);
+  renderTri();
+  finding(c1, MK.map(k => `<b>${MOD[k].t}</b>: ` + TR[k].pairs.map(p => `${V[p.a]}–${V[p.b]} ${fmt(p.r, 3)}`).join(', ')).join('<br>'));
+
+  const c2 = card(grid, 'Tekst przewidywany przez źrenicę i MW naraz', 'Regresja: sprzężenie (z) ~ źrenica (z) + MW (z). Kropka = współczynnik w SD sprzężenia na 1 SD predyktora, wąs = 95 % CI. Linia przerywana = brak wpływu.');
+  legend(c2, MK.map(k => ({ t: MOD[k].t, c: MOD[k].c })));
+  const rows = ['pupil', 'mw'].flatMap(x => MK.map(k => ({ x, k, ...rg(k, x) })));
+  {
+    const f = frame(c2.node(), 560, 210, { l: 80, t: 10, r: 14, b: 40 });
+    const lim = d3.max(rows, r => Math.abs(r.b) + 1.96 * r.se);
+    const x = d3.scaleLinear().domain([-lim, lim]).nice().range([0, f.w]);
+    const y = d3.scaleBand().domain(['pupil', 'mw']).range([0, f.h]).padding(0.25), ys = d3.scaleBand().domain(MK).range([0, y.bandwidth()]).padding(0.3);
+    xAxis(f.g, x, f.h, x.ticks(6), d => d.toFixed(2)); axisTitle(f.g, 'współczynnik (SD sprzężenia na 1 SD)', f.w, f.h, 'x');
+    f.g.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', 0).attr('y2', f.h).attr('stroke', css('--ink-2')).attr('stroke-dasharray', '4 3');
+    f.g.append('g').selectAll('text').data(['pupil', 'mw']).join('text').attr('class', 'tick').attr('x', -10).attr('y', d => y(d) + y.bandwidth() / 2 + 4).attr('text-anchor', 'end').text(d => V[d]);
+    const g = f.g.append('g').selectAll('g').data(rows).join('g');
+    const cy = r => y(r.x) + ys(r.k) + ys.bandwidth() / 2;
+    g.append('line').attr('x1', r => x(r.b - 1.96 * r.se)).attr('x2', r => x(r.b + 1.96 * r.se)).attr('y1', cy).attr('y2', cy).attr('stroke', r => css(MOD[r.k].c)).attr('stroke-width', 2.5);
+    g.append('circle').attr('cx', r => x(r.b)).attr('cy', cy).attr('r', 6).attr('fill', r => css(MOD[r.k].c)).attr('stroke', css('--surface')).attr('stroke-width', 1.5);
+    hover(g, r => `<b>${V[r.x]}</b> · ${MOD[r.k].t}<br>b = ${fmt(r.b, 3)} ± ${fmt(r.se, 3)} (SE)<br>t = ${r.t}, ${pval(r.p)}`);
+  }
+  finding(c2, MK.map(k => `<b>${MOD[k].t}</b>: MW b = ${fmt(rg(k, 'mw').b, 3)} (${pval(rg(k, 'mw').p)}), źrenica b = ${fmt(rg(k, 'pupil').b, 3)} (${pval(rg(k, 'pupil').p)})`).join('<br>') + '<br>Dodanie źrenicy nie zmienia współczynnika MW, bo źrenica z MW nie koreluje.');
+  tableView(c2, rows.map(r => ({ ...r, m: MOD[r.k].t, v: V[r.x] })), [{ key: 'm', label: 'model' }, { key: 'v', label: 'predyktor' }, { key: 'b', label: 'b', f: v => fmt(v, 3) }, { key: 'se', label: 'SE', f: v => fmt(v, 4) }, { key: 't', label: 't' }, { key: 'p', label: 'p', f: v => fmt(v, 4) }]);
+}
+
+// ===== 8. pupil around each story word (measured onsets)
+if (D.wordpupil) {
+  const WP = D.wordpupil, WM = WP.meta, C = WP.cats, WR = WP.word_minus_random;
+  const CAT = { all: 'wszystkie słowa', content: 'słowa treściowe', function: 'słowa funkcyjne', sent_first: 'pierwsze słowo zdania', random: 'losowe chwile (kontrola)' };
+  const HL = { hi: { t: 'wysokie MW', c: '--s8' }, lo: { t: 'niskie MW', c: '--s1' } };
+  const WIN = w => `${fmt(w.from, 1)}–${fmt(w.to, 1)} s`;
+  const CI = 1.96, avg = w => (w.hi + w.lo) / 2;
+  const wordCats = ['all', 'content', 'function', 'sent_first'];
+  const minP = d3.min(wordCats.flatMap(k => C[k].windows.map(w => w.p)));
+  const sf = C.sent_first.windows[2], rnd = C.random.windows[2];
+  const WNIOSEK_WORD = minP >= 0.05
+    ? `Przy wysokim i niskim MW źrenica reaguje na słowa bajki tak samo: w żadnym oknie i w żadnej grupie słów różnica nie jest istotna (najmniejsze p = ${fmt(minP, 2)}, ${C.all.n_subjects} osób). Sama reakcja na słowo jest, ale drobna: względem losowych chwil tych samych prób ${fmt(WR[0].hi.mean, 3)} SD w pierwszych 0,5 s i ${fmt(WR[2].hi.mean, 3)} SD w 1–2 s, tak samo w obu połowach MW (${pval(WR[2].hi_minus_lo.p)}). Mocniej przebieg zmienia się po początku zdania (${fmt(avg(sf), 2)} SD w 1–2 s wobec ${fmt(avg(rnd), 2)} SD w losowych chwilach), też bez różnicy między MW. <b>Odpływanie nie wycisza reakcji źrenicy na kolejne słowa.</b> To trzeci pomiar po sekcjach 6 i 7, w którym źrenica nie odróżnia wysokiego MW od niskiego.`
+    : `W co najmniej jednym oknie reakcja źrenicy na słowa różni się między wysokim i niskim MW (najmniejsze p = ${fmt(minP, 3)}); szczegóły w kartach poniżej.`;
+  const grid = section('words', '8 · Źrenica wokół każdego słowa bajki', `Każde słowo bajki ma początek zmierzony na nagraniu (wymuszone dopasowanie tekstu do audio; ${SHARE ? 'odsłuch tylko w pełnej wersji lokalnej' : 'odsłuch na <a href="semcoupling-align.html">osobnej stronie</a>'}). Wokół każdego słowa: źrenica 100 Hz w z wewnątrz osoby, od −${WM.pre_s} do +${WM.post_s} s, minus średnia z ${WM.pre_s} s przed słowem. Pominięte: słowa z pierwszych ${WM.skip_s} s fragmentu (tam dominuje reakcja na start nagrania) i słowa z niepewnym dopasowaniem. MW = podział po medianie wewnątrz osoby. Kontrola: tyle samo losowych chwil w tych samych próbach. Średnia najpierw w osobie, potem między osobami; ${WM.n_trials} prób, ${WM.n_epochs.all.toLocaleString('pl')} słów.`,
+    WNIOSEK_WORD);
+
+  d3.select(grid).style('grid-template-columns', 'repeat(auto-fit, minmax(min(460px, 100%), 1fr))');
+  // curves
+  const c1 = card(grid, 'Przebieg źrenicy po słowie: wysokie vs niskie MW', 'Średnia osób ± SEM. Linie przerywane: te same próby w losowych chwilach. Pasy w tle: okna, w których porównuję średnie.', { wide: true });
+  c1.append('div').attr('class', 'filters').append('label').html('słowa <select id="wCat">' + Object.keys(CAT).map(k => `<option value="${k}">${CAT[k]}</option>`).join('') + '</select>');
+  legend(c1, [{ t: HL.hi.t, c: HL.hi.c, line: true }, { t: HL.lo.t, c: HL.lo.c, line: true }]);
+  const host = c1.append('div'), note = c1.append('div');
+  function renderCurves() {
+    const k = document.getElementById('wCat').value, cur = C[k], ctl = k === 'random' ? null : C.random;
+    host.html('');
+    const f = frame(host.node(), 1160, 300, { l: 70, t: 18, r: 16, b: 40 });
+    const x = d3.scaleLinear().domain([-WM.pre_s, WM.post_s]).range([0, f.w]);
+    const series = [cur, ctl].filter(Boolean).flatMap(s => ['hi', 'lo'].flatMap(h => s[h].mean.map((m, i) => [m - (s[h].sem[i] || 0), m + (s[h].sem[i] || 0)]).flat()));
+    const y = d3.scaleLinear().domain(d3.extent(series.concat([0]))).nice().range([f.h, 0]);
+    WM.windows.forEach(([a, b], i) => {
+      f.g.append('rect').attr('x', x(a)).attr('width', x(b) - x(a)).attr('y', 0).attr('height', f.h).attr('fill', css('--grid')).attr('opacity', i % 2 ? 0.25 : 0.5);
+      f.g.append('text').attr('class', 'tick').attr('x', (x(a) + x(b)) / 2).attr('y', -5).attr('text-anchor', 'middle').text(`${fmt(a, 1)}–${fmt(b, 1)} s`);
+    });
+    yGrid(f.g, y, f.w, 5); xAxis(f.g, x, f.h, d3.range(-0.5, 2.01, 0.5), d => fmt(d, 1) + ' s');
+    axisTitle(f.g, 'czas od początku słowa', f.w, f.h, 'x');
+    f.g.append('text').attr('class', 'axis-title').attr('transform', `translate(-56,${f.h / 2}) rotate(-90)`).attr('text-anchor', 'middle').text('źrenica (z, minus przed słowem)');
+    f.g.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', 0).attr('y2', f.h).attr('stroke', css('--ink-2')).attr('stroke-dasharray', '4 3');
+    const T = WP.t;
+    for (const h of ['hi', 'lo']) {
+      const col = css(HL[h].c), m = cur[h].mean, s = cur[h].sem;
+      f.g.append('path').attr('fill', col).attr('opacity', 0.15).attr('d', d3.area().x((d, i) => x(T[i])).y0((d, i) => y(m[i] - s[i])).y1((d, i) => y(m[i] + s[i]))(m));
+      f.g.append('path').attr('fill', 'none').attr('stroke', col).attr('stroke-width', 2).attr('d', d3.line().x((d, i) => x(T[i])).y(d => y(d))(m));
+      if (ctl) f.g.append('path').attr('fill', 'none').attr('stroke', col).attr('stroke-width', 1.2).attr('stroke-dasharray', '5 4').attr('opacity', 0.7).attr('d', d3.line().x((d, i) => x(T[i])).y(d => y(d))(ctl[h].mean));
+    }
+    const hoverG = f.g.append('line').attr('y1', 0).attr('y2', f.h).attr('stroke', css('--ink')).attr('opacity', 0);
+    f.g.append('rect').attr('width', f.w).attr('height', f.h).attr('fill', 'transparent')
+      .on('mousemove', ev => { const i = d3.minIndex(T, t => Math.abs(x(t) - d3.pointer(ev)[0])); hoverG.attr('x1', x(T[i])).attr('x2', x(T[i])).attr('opacity', .4);
+        showTip(`<b>${fmt(T[i], 2)} s</b> · ${CAT[k]}<br>wysokie MW ${fmt(cur.hi.mean[i], 3)} ± ${fmt(cur.hi.sem[i], 3)}<br>niskie MW ${fmt(cur.lo.mean[i], 3)} ± ${fmt(cur.lo.sem[i], 3)}` + (ctl ? `<br>losowe chwile: ${fmt(ctl.hi.mean[i], 3)} / ${fmt(ctl.lo.mean[i], 3)}` : ''), ev); })
+      .on('mouseleave', () => { hideTip(); hoverG.attr('opacity', 0); });
+    note.html('');
+    finding(note, `<b>${CAT[k]}</b>, ${cur.n_subjects} osób, ${WM.n_epochs[k].toLocaleString('pl')} chwil. ` + cur.windows.map(w => `${WIN(w)}: wysokie − niskie = ${fmt(w.diff, 3)} ± ${fmt(w.sem, 3)}, t = ${w.t}, ${pval(w.p)}`).join('; ') + '.');
+  }
+  d3.select('#wCat').on('change', renderCurves);
+  renderCurves();
+  tableView(c1, Object.keys(CAT).flatMap(k => C[k].windows.map(w => ({ row: `${CAT[k]} · ${WIN(w)}`, ...w }))), [{ key: 'row', label: 'słowa · okno' }, { key: 'hi', label: 'wysokie MW', f: v => fmt(v, 4) }, { key: 'lo', label: 'niskie MW', f: v => fmt(v, 4) }, { key: 'diff', label: 'różnica', f: v => fmt(v, 4) }, { key: 't', label: 't' }, { key: 'p', label: 'p', f: v => fmt(v, 4) }, { key: 'n_pos', label: 'osób z wysokie > niskie' }]);
+
+  // forest of differences high - low
+  const WC = ['--s3', '--s4', '--s7'];
+  const c2 = card(grid, 'Różnica wysokie − niskie MW w oknach', 'Każda kreska to jedno okno po słowie; 95 % CI (≈ ±2 SEM). Pełna kropka = p < 0,05. Wszystkie kreski przecinające zero znaczą: brak różnicy.');
+  forest(c2, Object.keys(CAT).flatMap(k => C[k].windows.map((w, i) => ({ label: `${CAT[k]} · ${WIN(w)}`, m: w.diff, se: w.sem, t: w.t, p: w.p, c: WC[i] }))), 'wysokie − niskie MW (z)');
+  finding(c2, `Najmniejsze p wśród słów: ${fmt(minP, 3)}. Kontrola w losowych chwilach daje ${C.random.windows.map(w => fmt(w.diff, 3)).join(' / ')}: prawie tyle samo co słowa, więc nawet te drobne, nieistotne różnice to ogólny dryf źrenicy w próbie, nie reakcja na słowo.`);
+  tableView(c2, Object.keys(CAT).flatMap(k => C[k].windows.map(w => ({ row: `${CAT[k]} · ${WIN(w)}`, ...w }))), [{ key: 'row', label: 'słowa · okno' }, { key: 'diff', label: 'wysokie − niskie', f: v => fmt(v, 4) }, { key: 'sem', label: 'SEM', f: v => fmt(v, 4) }, { key: 'p', label: 'p', f: v => fmt(v, 3) }]);
+
+  const c3 = card(grid, 'Reakcja na słowo ponad losowe chwile', `Słowo minus losowa chwila w tych samych próbach, osobno w każdej połowie MW i różnica połów; 95 % CI. ${WM.n_subjects_wr} osób.`);
+  forest(c3, WR.flatMap((w, i) => [
+    { label: `${WIN(w)} · wysokie MW`, m: w.hi.mean, se: w.hi.sem, t: w.hi.t, p: w.hi.p, c: HL.hi.c },
+    { label: `${WIN(w)} · niskie MW`, m: w.lo.mean, se: w.lo.sem, t: w.lo.t, p: w.lo.p, c: HL.lo.c },
+    { label: `${WIN(w)} · wysokie − niskie`, m: w.hi_minus_lo.mean, se: w.hi_minus_lo.sem, t: w.hi_minus_lo.t, p: w.hi_minus_lo.p, c: '--ink-2', head: true }]), 'słowo − losowa chwila (z)');
+  const pc = v => fmt(Math.abs(v) * (WM.sd_pct_median || 0), 2);
+  finding(c3, `<b>Źrenica reaguje na słowo, ale ledwo.</b> W pierwszych 0,5 s po słowie jest węższa niż w losowej chwili o ${fmt(-WR[0].lo.mean, 3)} SD (około ${pc(WR[0].lo.mean)} % rozmiaru), w 1–2 s szersza o ${fmt(WR[2].lo.mean, 3)} SD (około ${pc(WR[2].lo.mean)} %); oba istotne (${pval(WR[0].lo.p)}, ${pval(WR[2].lo.p)}; niskie MW, przy wysokim tak samo). <b>MW tego nie zmienia:</b> czarne kółka leżą na zerze (${WR.map(w => pval(w.hi_minus_lo.p)).join(', ')}).`);
+  tableView(c3, WR.flatMap(w => ['hi', 'lo', 'hi_minus_lo'].map(h => ({ row: `${WIN(w)} · ${h === 'hi' ? 'wysokie MW' : h === 'lo' ? 'niskie MW' : 'wysokie − niskie'}`, ...w[h] }))), [{ key: 'row', label: 'okno · MW' }, { key: 'mean', label: 'słowo − losowa', f: v => fmt(v, 4) }, { key: 'sem', label: 'SEM', f: v => fmt(v, 4) }, { key: 'p', label: 'p', f: v => fmt(v, 3) }]);
+}
+
+// ===== 9. thought categories (ticket 3)
+// horizontal dots per category: series [{k, sk?, t, c}], rows carry .cat and .n
+function catDots(c, rows, series, xTitle, { W = 560, dec = 3, zero = false, filled = () => true } = {}) {
+  const f = frame(c.node(), W, 46 + rows.length * 26, { l: 176, t: 6, r: 14, b: 40 });
+  const vals = rows.flatMap(r => series.flatMap(s => r[s.k] == null ? [] : [r[s.k] - (s.sk ? r[s.sk] || 0 : 0), r[s.k] + (s.sk ? r[s.sk] || 0 : 0)])).concat(zero ? [0] : []);
+  const x = d3.scaleLinear().domain(d3.extent(vals)).nice().range([0, f.w]);
+  const y = d3.scaleBand().domain(rows.map(r => r.cat)).range([0, f.h]).paddingInner(0.15);
+  const ys = d3.scaleBand().domain(series.map(s => s.k)).range([0, y.bandwidth()]).paddingInner(0.2);
+  f.g.append('g').selectAll('line').data(x.ticks(5)).join('line').attr('class', 'grid-line').attr('x1', d => x(d)).attr('x2', d => x(d)).attr('y1', 0).attr('y2', f.h);
+  xAxis(f.g, x, f.h, x.ticks(5), d => d); axisTitle(f.g, xTitle, f.w, f.h, 'x');
+  if (zero) f.g.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', 0).attr('y2', f.h).attr('stroke', css('--ink-2')).attr('stroke-dasharray', '4 3');
+  f.g.append('g').selectAll('text').data(rows).join('text').attr('class', 'tick').style('font-size', '12px').attr('x', -10).attr('y', r => y(r.cat) + y.bandwidth() / 2 + 4).attr('text-anchor', 'end').text(r => `${CATN[r.cat]} (${r.n})`);
+  for (const s of series) {
+    const cy = r => y(r.cat) + ys(s.k) + ys.bandwidth() / 2;
+    const g = f.g.append('g').selectAll('g').data(rows.filter(r => r[s.k] != null)).join('g');
+    if (s.sk) g.append('line').attr('x1', r => x(r[s.k] - r[s.sk])).attr('x2', r => x(r[s.k] + r[s.sk])).attr('y1', cy).attr('y2', cy).attr('stroke', css(s.c)).attr('stroke-width', 2);
+    g.append('circle').attr('cx', r => x(r[s.k])).attr('cy', cy).attr('r', 4.5).attr('fill', r => filled(r, s) ? css(s.c) : css('--surface')).attr('stroke', css(s.c)).attr('stroke-width', 2);
+    hover(g, r => `<b>${CATN[r.cat]}</b> · ${s.t}<br>${fmt(r[s.k], dec)}${s.sk ? ' ± ' + fmt(r[s.sk], dec) + ' (SEM)' : ''}${r.extra ? r.extra(s) : ''}<br>n = ${r.n}`);
+  }
+}
+
+if (LB) {
+  const BM = LB.by_mw, BC = LB.by_cat, EY = LB.eye, TOT = LB.totals;
+  const sh = (b, k) => b.counts[k] / b.n, first = BM[0], last = BM[BM.length - 1];
+  const bc = k => BC.find(r => r.cat === k);
+  const eyeTests = EY.rows.flatMap(r => Object.keys(EY.features).map(e => r[e].p)).filter(p => p != null);
+  const eyeSig = eyeTests.filter(p => p < 0.05).length, bonf = 0.05 / eyeTests.length;
+  const WNIOSEK_CATS = `Im wyższe MW w sondzie, tym rzadziej relacja jest o historii: ${pct(sh(first, 'story'))} przy MW ${first.label} i ${pct(sh(last, 'story'))} przy ${last.label}. Miejsce historii zajmują <b>ciało i otoczenie</b> (${pct(sh(first, 'environment'))} → ${pct(sh(last, 'environment'))}) i <b>własne plany</b> (${pct(sh(first, 'self_future'))} → ${pct(sh(last, 'self_future'))}). Myśli o zadaniu i własnej uwadze są w każdym przedziale mniej więcej tak samo częste (${BM.map(b => pct(sh(b, 'task'))).join(', ')}): to głos osób, które pilnują się, że słuchają, a nie tych, które odpłynęły (średnie MW ${fmt(bc('task').mw, 0)} wobec ${fmt(bc('story').mw, 0)} dla historii). Wspomnienia prawie się nie zdarzają (${TOT.self_past.primary} relacji), myśli o przyszłości są pięć razy częstsze. Sprzężenie dobrze oddziela historię i skojarzenia z nią (${fmt(bc('story').cmax_pl, 3)}, ${fmt(bc('association').cmax_pl, 3)}) od reszty (${fmt(bc('task').cmax_pl, 3)}–${fmt(bc('self_future').cmax_pl, 3)}), więc niski wynik sprzężenia to „nie o fabule”, a nie „odpłynął”: zadanie i własna uwaga ma prawie takie samo sprzężenie jak ciało i otoczenie, choć MW tych osób jest dużo niższe. W oku ${eyeSig} z ${eyeTests.length} porównań z historią ma p < 0,05, ale żadne nie przechodzi poprawki na liczbę porównań (próg ${fmt(bonf, 4)}): to tropy, nie wynik.`;
+  const grid = section('cats', '9 · Kategorie myśli', `Każdą z ${R.length} relacji Claude Haiku przypisał do jednej z ośmiu kategorii (podział Stawarczyk i in. 2011: myśl o zadaniu, interferencja związana z zadaniem, rozproszenie z zewnątrz, błądzenie myśli, to ostatnie rozbite na przeszłość, teraz i przyszłość). Kategoria to treść, która zajmuje większość relacji; pozostałe obecne treści są w polu „też” w przeglądarce (sekcja 5). Model dostawał tylko tekst fragmentu i relacji, bez osoby i bez MW.`, WNIOSEK_CATS);
+  d3.select(grid).style('grid-template-columns', 'repeat(auto-fit, minmax(min(420px, 100%), 1fr))');
+
+  const c1 = card(grid, 'Kategorie w przedziałach MW', 'Udział kategorii wśród relacji w każdym przedziale odpowiedzi na sondę; po prawej liczba relacji.', { wide: true });
+  legend(c1, LB.cats.map(k => ({ t: CATN[k], c: CATC[k] })));
+  {
+    const f = frame(c1.node(), 900, 46 + BM.length * 36, { l: 70, t: 6, r: 70, b: 34 });
+    const x = d3.scaleLinear().domain([0, 1]).range([0, f.w]);
+    const y = d3.scaleBand().domain(BM.map(b => b.label)).range([0, f.h]).paddingInner(0.25);
+    f.g.append('g').selectAll('line').data([0, .25, .5, .75, 1]).join('line').attr('class', 'grid-line').attr('x1', d => x(d)).attr('x2', d => x(d)).attr('y1', 0).attr('y2', f.h);
+    xAxis(f.g, x, f.h, [0, .25, .5, .75, 1], d => (100 * d) + '%');
+    f.g.append('g').selectAll('text').data(BM).join('text').attr('class', 'tick').style('font-size', '12px').attr('x', -10).attr('y', b => y(b.label) + y.bandwidth() / 2 + 4).attr('text-anchor', 'end').text(b => 'MW ' + b.label);
+    f.g.append('g').selectAll('text').data(BM).join('text').attr('class', 'tick').attr('x', f.w + 8).attr('y', b => y(b.label) + y.bandwidth() / 2 + 4).text(b => `n = ${b.n}`);
+    const segs = BM.flatMap(b => { let acc = 0; return LB.cats.map(k => { const v = sh(b, k), s = { b, k, v, x0: acc }; acc += v; return s; }); });
+    const g = f.g.append('g').selectAll('g').data(segs.filter(s => s.v > 0)).join('g');
+    g.append('rect').attr('x', s => x(s.x0)).attr('y', s => y(s.b.label)).attr('width', s => Math.max(0, x(s.v) - 1)).attr('height', y.bandwidth()).attr('fill', s => css(CATC[s.k]));
+    g.filter(s => s.v >= 0.06).append('text').attr('x', s => x(s.x0 + s.v / 2)).attr('y', s => y(s.b.label) + y.bandwidth() / 2 + 4).attr('text-anchor', 'middle').style('font-size', '11px').style('font-weight', 600).attr('fill', s => CAT_LIGHT.has(s.k) ? '#0b0b0b' : '#fff').text(s => pct(s.v));
+    hover(g, s => `<b>MW ${s.b.label}</b> · ${CATN[s.k]}<br>${pct(s.v)} (${s.b.counts[s.k]} z ${s.b.n} relacji)`);
+  }
+  tableView(c1, BM.map(b => ({ label: b.label, n: b.n, ...Object.fromEntries(LB.cats.map(k => [k, b.counts[k]])) })), [{ key: 'label', label: 'MW' }, { key: 'n', label: 'n' }, ...LB.cats.map(k => ({ key: k, label: CATN[k] }))]);
+
+  const rowsC = BC.filter(r => r.n > 0);
+  const c2 = card(grid, 'Sprzężenie wg kategorii', 'Średnie sprzężenie max relacji z jej fragmentem w każdej kategorii, ±1 SEM; w nawiasie liczba relacji.');
+  catDots(c2, rowsC, [{ k: 'cmax_pl', sk: 'cmax_pl_sem', t: MOD.pl.t, c: MOD.pl.c }, { k: 'cmax_mini', sk: 'cmax_mini_sem', t: MOD.mini.t, c: MOD.mini.c }], 'sprzężenie max (cosinus)', { W: 440 });
+  legend(c2, MK.map(k => ({ t: MOD[k].t, c: MOD[k].c })));
+  tableView(c2, rowsC, [{ key: 'cat', label: 'kategoria', f: v => CATN[v] }, { key: 'n', label: 'n' }, { key: 'cmax_pl', label: 'polski', f: v => fmt(v, 3) }, { key: 'cmax_mini', label: 'MiniLM', f: v => fmt(v, 3) }]);
+
+  const c3 = card(grid, 'MW z sondy wg kategorii', 'Średnia odpowiedź na sondę (0–99) w relacjach danej kategorii, ±1 SEM.');
+  catDots(c3, rowsC, [{ k: 'mw', sk: 'mw_sem', t: 'MW z sondy', c: '--s8' }], 'MW (sonda 0–99)', { dec: 1, W: 440 });
+  tableView(c3, rowsC, [{ key: 'cat', label: 'kategoria', f: v => CATN[v] }, { key: 'n', label: 'n' }, { key: 'n_subj', label: 'osób' }, { key: 'mw', label: 'MW', f: v => fmt(v, 1) }]);
+
+  const c4 = card(grid, 'Oko wg kategorii', `Trzy cechy oka z całej próby, każda w z wewnątrz osoby (0 = przeciętna próba tej osoby): średnica źrenicy, rozrzut spojrzenia, częstość mrugnięć. Średnia osób ±1 SEM. Pełna kropka = różnica od historii w tych samych osobach ma p < 0,05 (bez poprawki). ${EY.n_trials} prób, ${EY.n_subj} osób.`, { wide: true });
+  const pn = c4.append('div').attr('class', 'panels');
+  for (const e of Object.keys(EY.features)) {
+    const p = pn.append('div'); p.append('h4').text(EY.features[e]);
+    const rows = EY.rows.filter(r => r[e].n_subj > 1).map(r => ({ cat: r.cat, n: r[e].n_subj, m: r[e].mean, se: r[e].sem, p: r[e].p, extra: () => r.cat === 'story' ? '' : `<br>różnica od historii ${fmt(r[e].vs_story, 3)}, ${pval(r[e].p)}, ${r[e].n_pair} osób` }));
+    catDots(p, rows, [{ k: 'm', sk: 'se', t: EY.features[e], c: '--s7' }], `${EY.features[e]} (z)`, { W: 420, zero: true, filled: r => r.cat === 'story' || r.p < 0.05 });
+  }
+  finding(c4, `Pełne kropki: ${EY.rows.flatMap(r => Object.keys(EY.features).filter(e => r[e].p != null && r[e].p < 0.05).map(e => `${CATN[r.cat]} · ${EY.features[e]} ${fmt(r[e].vs_story, 2)} (${pval(r[e].p)})`)).join('; ') || 'brak'}. Przy ${eyeTests.length} porównaniach około ${fmt(eyeTests.length * 0.05, 0)} wyszłoby z p < 0,05 przez przypadek; próg po poprawce Bonferroniego to ${fmt(bonf, 4)} i nie przechodzi go żadne.`);
+  tableView(c4, EY.rows.flatMap(r => Object.keys(EY.features).map(e => ({ row: `${CATN[r.cat]} · ${EY.features[e]}`, ...r[e] }))), [{ key: 'row', label: 'kategoria · cecha' }, { key: 'mean', label: 'z', f: v => fmt(v, 3) }, { key: 'n_subj', label: 'osób' }, { key: 'vs_story', label: 'vs historia', f: v => fmt(v, 3) }, { key: 'p', label: 'p', f: v => fmt(v, 3) }]);
+}
+
+// ===== 10. distraction read from the text by Haiku (ticket 11)
+const WNIOSEK_RATE = RS => {
+  const W = RS.within, pp = RS.partial_pl, pm = RS.partial_mini;
+  const more = W.model.mean_r > -W.cmax_pl.mean_r;
+  const bc = k => RS.by_cat.find(c => c.cat === k), story = bc('story'), fut = bc('self_future'), env = bc('environment');
+  return `Haiku zgaduje odpowiedź na sondę z samego tekstu ${W.model.mean_r >= 0.3 ? 'nieźle' : 'słabo, ale wyraźnie'}: r = ${fmt(W.model.mean_r, 2)} średnio w obrębie osoby (${pval(W.model.p_subj)}; po wszystkich relacjach ${fmt(RS.pooled.model, 2)}). To ${more ? 'wyraźnie więcej' : 'nie więcej'} niż sprzężenie, które w tej samej roli daje ${fmt(-W.cmax_pl.mean_r, 2)} (polski) i ${fmt(-W.cmax_mini.mean_r, 2)} (MiniLM). ${pp.p_subj < 0.05 ? `Po odjęciu sprzężenia zostaje r = ${fmt(pp.mean_r, 2)} (${pval(pp.p_subj)}; z MiniLM ${fmt(pm.mean_r, 2)}): <b>model czyta z relacji coś o rozproszeniu, czego miara podobieństwa nie łapie</b>: sprzężenie widzi tylko „o bajce albo nie”, a model odróżnia myśl o obiedzie od zdania „byłam skupiona”, które dla sprzężenia wyglądają tak samo (sekcja 9).` : `Po odjęciu sprzężenia nie zostaje nic istotnego (r = ${fmt(pp.mean_r, 2)}, ${pval(pp.p_subj)}): model w praktyce powtarza sprzężenie.`} W relacjach o historii osoby i model zgadzają się co do poziomu (${fmt(story.self, 0)} i ${fmt(story.model, 0)}), ale w każdej kategorii spoza historii model ocenia rozproszenie wyżej niż ludzie, najbardziej przy własnych planach (osoby ${fmt(fut.self, 0)}, Haiku ${fmt(fut.model, 0)}) i przy ciele i otoczeniu (${fmt(env.self, 0)} i ${fmt(env.model, 0)}). Wśród największych rozjazdów są osoby, które w relacji planują zakupy i obiad, a na skali zaznaczają 0. Albo te osoby czytają „w tym momencie” jako chwilę zatrzymania, a nie czas słuchania, albo planowanie przy słuchaniu nie jest dla nich rozproszeniem. W drugą stronę rozjeżdżają się prawie same rzeczowe streszczenia fragmentu od osób, które zaznaczyły 90 i więcej: z tekstu nie widać, że odpłynęły. <b>Tekst niesie dużo informacji o rozproszeniu, ale nie zastępuje sondy.</b>`;
+};
+if (RATE && RATE.stats) {
+  const RS = RATE.stats, W = RS.within, MR = RATE.per_recall;
+  const seOf = v => Math.abs(v.mean_r / v.t);
+  const grid = section('rate', '10 · Rozproszenie oczami modelu', `Haiku dostał fragment i relację każdej z ${R.length} prób oraz pytanie z ekranu uczestnika: „W jakim stopniu byłeś w tym momencie rozproszony podczas słuchania historii?”, skala od 0 „Brak rozproszenia” do 100 „Pełne rozproszenie”, i miał zgadnąć, co osoba zaznaczyła. Nie widział odpowiedzi osoby, jej identyfikatora ani kategorii z sekcji 9; każda relacja to osobne zapytanie. Związki liczone w z wewnątrz osoby: ${RS.n_within} relacji, ${RS.n_subj} osób z co najmniej 8 relacjami.`, WNIOSEK_RATE(RS));
+  d3.select(grid).style('grid-template-columns', 'repeat(auto-fit, minmax(min(420px, 100%), 1fr))');
+
+  const c1 = card(grid, 'Sonda vs ocena Haiku', `Jedna kropka = jedna relacja (lekko rozsunięte w pionie, bo Haiku często daje okrągłe liczby). r Pearsona po wszystkich relacjach = ${fmt(RS.pooled.model, 3)}; dla porównania sprzężenie max ${fmt(RS.pooled.cmax_pl, 3)}.`, { wide: true });
+  if (LB) legend(c1, LB.cats.map(k => ({ t: CATN[k], c: CATC[k] })));
+  {
+    const f = frame(c1.node(), 900, 400, { l: 56, t: 10, r: 12, b: 44 });
+    const x = d3.scaleLinear().domain([0, 100]).range([0, f.w]), y = d3.scaleLinear().domain([0, 100]).range([f.h, 0]);
+    yGrid(f.g, y, f.w, 5); xAxis(f.g, x, f.h, x.ticks(10));
+    axisTitle(f.g, 'rozproszenie wg osoby (sonda)', f.w, f.h, 'x'); axisTitle(f.g, 'rozproszenie wg Haiku', f.w, f.h, 'y');
+    f.g.append('line').attr('x1', x(0)).attr('y1', y(0)).attr('x2', x(100)).attr('y2', y(100)).attr('stroke', css('--ink-2')).attr('stroke-dasharray', '4 3');
+    const jit = i => ((i * 7919) % 11 - 5) * 0.35;
+    const pts = R.filter(r => MR[r.i] != null);
+    const dots = f.g.append('g').selectAll('circle').data(pts).join('circle').attr('cx', r => x(r.mw)).attr('cy', r => y(Math.max(0, Math.min(100, MR[r.i] + jit(r.i))))).attr('r', 2.4)
+      .attr('fill', r => css(LBR(r.i) ? CATC[LBR(r.i)[0]] : '--s7')).attr('opacity', .28).style('cursor', 'pointer').on('click', (ev, r) => selectRecall(r.i, true));
+    hover(dots, r => `<b>osoba ${r.mw} · Haiku ${MR[r.i]}</b>${LBR(r.i) ? ' · ' + CATN[LBR(r.i)[0]] : ''}${snip(r, 180)}${RATE.reason[r.i] ? `<br><span class="muted">${RATE.reason[r.i]}</span>` : ''}`);
+    // binned means on top: the trend the cloud hides
+    const B = RS.bins, bx = b => x(b.x);
+    f.g.append('path').datum(B).attr('fill', 'none').attr('stroke', css('--ink')).attr('stroke-width', 2.5).attr('d', d3.line().x(bx).y(b => y(b.model)));
+    const bg = f.g.append('g').selectAll('g').data(B).join('g');
+    bg.append('line').attr('x1', bx).attr('x2', bx).attr('y1', b => y(b.model - b.ci)).attr('y2', b => y(b.model + b.ci)).attr('stroke', css('--ink')).attr('stroke-width', 2);
+    bg.append('circle').attr('cx', bx).attr('cy', b => y(b.model)).attr('r', 6).attr('fill', css('--ink')).attr('stroke', css('--surface')).attr('stroke-width', 2);
+    hover(bg, b => `<b>osoba ${b.label}</b> (${b.n} relacji)<br>średnio Haiku ${fmt(b.model, 1)} ± ${fmt(b.ci, 1)} (95 % CI)`);
+  }
+  legend(c1, [{ t: 'średnia ocena Haiku w przedziale samooceny, 95 % CI', c: '--ink', line: true }]);
+  finding(c1, `<b>Co z tego wynika.</b> Pojedyncza relacja mówi mało (rozrzut jest ogromny), ale średnio Haiku idzie za ludźmi: od ${fmt(RS.bins[0].model, 0)} przy samoocenie ${RS.bins[0].label} do ${fmt(d3.max(RS.bins, b => b.model), 0)} przy ${RS.bins[d3.maxIndex(RS.bins, b => b.model)].label}${RS.bins[RS.bins.length - 1].n < 30 ? `; spadek w ostatnim przedziale (${RS.bins[RS.bins.length - 1].label}) to tylko ${RS.bins[RS.bins.length - 1].n} relacji, głównie streszczeń` : ''}. Dużą część chmury robią różnice między osobami: ${pct(RS.between_share.self)} rozrzutu samooceny to to, że jedne osoby zawsze zaznaczają nisko, a inne wysoko (u Haiku ${pct(RS.between_share.model)}); wykres „piątki własnej skali” poniżej usuwa ten efekt. Poziome pasy to ulubione liczby Haiku (${RS.top_values.join(', ')}).`);
+
+  const cq = card(grid, 'Haiku w piątkach własnej skali osoby', `Relacje każdej osoby podzielone na piątki według jej własnej samooceny (1 = jej 20 % najniżej ocenionych prób, 5 = 20 % najwyżej). Kropka = średnia ocena Haiku, wąs = 95 % CI. ${RS.n_subj} osób.`);
+  groupedBars(cq, RS.quint, [{ k: 'model', sk: 'ci', t: 'Haiku (0–100)', c: '--s8' }], { dots: true, dec: 1, xTitle: 'piątka własnej skali osoby (1 = najbardziej skupiona)' });
+  finding(cq, `W obrębie tej samej osoby Haiku daje ${RS.quint.map(q => fmt(q.model, 0)).join(', ')}: w trzech dolnych piątkach tyle samo, wyraźny wzrost dopiero w dwóch górnych. Model rozpoznaje próby, w których osoba naprawdę odpłynęła, ale nie odróżnia „trochę skupiona” od „bardzo skupiona”.`);
+
+  const c2 = card(grid, 'Co przewiduje sondę', `Średnie r policzone osobno w każdej osobie (${W.model.n_subj} osób), 95 % CI. Sprzężenie z odwróconym znakiem.`);
+  forest(c2, [
+    { label: 'Haiku z tekstu', m: W.model.mean_r, se: seOf(W.model), t: W.model.t, p: W.model.p_subj, c: '--s8', head: true },
+    { label: '− sprzężenie · polski', m: -W.cmax_pl.mean_r, se: seOf(W.cmax_pl), t: -W.cmax_pl.t, p: W.cmax_pl.p_subj, c: MOD.pl.c },
+    { label: '− sprzężenie · MiniLM', m: -W.cmax_mini.mean_r, se: seOf(W.cmax_mini), t: -W.cmax_mini.t, p: W.cmax_mini.p_subj, c: MOD.mini.c },
+    { label: 'Haiku ponad sprzężenie · pl', m: RS.partial_pl.mean_r, se: seOf(RS.partial_pl), t: RS.partial_pl.t, p: RS.partial_pl.p_subj, c: '--s8' },
+    { label: 'Haiku ponad sprzężenie · Mini', m: RS.partial_mini.mean_r, se: seOf(RS.partial_mini), t: RS.partial_mini.t, p: RS.partial_mini.p_subj, c: '--s8' },
+  ], 'r z sondą (średnia osób)', { W: 470, l: 200 });
+  tableView(c2, [['Haiku z tekstu', W.model], ['sprzężenie · polski', W.cmax_pl], ['sprzężenie · MiniLM', W.cmax_mini], ['Haiku | sprzężenie pl (cząstkowe)', RS.partial_pl], ['Haiku | sprzężenie Mini (cząstkowe)', RS.partial_mini]].map(([l, v]) => ({ l, ...v })),
+    [{ key: 'l', label: 'miara' }, { key: 'r', label: 'r wewn. osoby', f: v => fmt(v, 3) }, { key: 'p', label: 'p', f: v => fmt(v, 4) }, { key: 'mean_r', label: 'śr. r osób', f: v => fmt(v, 3) }, { key: 't', label: 't' }, { key: 'p_subj', label: 'p (osoby)', f: v => fmt(v, 4) }]);
+
+  if (LB) {
+    const c3 = card(grid, 'Sonda i Haiku wg kategorii', 'Średnia odpowiedź na sondę i średnia ocena Haiku w relacjach każdej kategorii z sekcji 9.');
+    catDots(c3, RS.by_cat.filter(r => r.n > 0), [{ k: 'self', t: 'osoba (sonda)', c: '--s8' }, { k: 'model', t: 'Haiku', c: '--s7' }], 'rozproszenie 0–100', { W: 470, dec: 1 });
+    legend(c3, [{ t: 'osoba (sonda)', c: '--s8' }, { t: 'Haiku', c: '--s7' }]);
+    tableView(c3, RS.by_cat, [{ key: 'cat', label: 'kategoria', f: v => CATN[v] }, { key: 'n', label: 'n' }, { key: 'self', label: 'osoba', f: v => fmt(v, 1) }, { key: 'model', label: 'Haiku', f: v => fmt(v, 1) }]);
+  }
+
+  {
+  const c4 = card(grid, 'Największe rozjazdy', 'Po 15 relacji z największą różnicą w każdą stronę. Identyfikator to wiersz w <code>behavioral_cleaned.csv</code> (Subject · TrialNum · Fragment), kolumna <code>MW</code> = odpowiedź osoby.', { wide: true });
+  const diffs = R.filter(r => MR[r.i] != null).map(r => ({ r, d: MR[r.i] - r.mw }));
+  const top = [diffs.slice().sort((a, b) => b.d - a.d).slice(0, 15), diffs.slice().sort((a, b) => a.d - b.d).slice(0, 15)];
+  const dis = c4.append('div').attr('class', 'dis');
+  for (const [title, rows] of [['Haiku czyta rozproszenie, osoba zaznaczyła skupienie', top[0]], ['Osoba zaznaczyła rozproszenie, Haiku czyta skupienie', top[1]]]) {
+    const col = dis.append('div'); col.append('h4').style('margin', '0 0 4px').style('font-size', '13px').text(title);
+    col.selectAll('div.it').data(rows).join('div').attr('class', 'it').style('cursor', SHARE ? 'default' : null).on('click', (ev, x) => selectRecall(x.r.i, true))
+      .html(x => `<div>${catDot(LBR(x.r.i) && LBR(x.r.i)[0])}<span class="sc">osoba (sonda) <b>${x.r.mw}</b></span> <span class="sc h">Haiku <b>${MR[x.r.i]}</b></span> <span class="id">${x.r.s} · trial ${x.r.t} · ${x.r.f}</span>${SHARE ? (LBR(x.r.i) ? ` <span class="id">${CATN[LBR(x.r.i)[0]]}</span>` : '') : ` <a class="open">otwórz w sekcji 5 →</a></div>${x.r.rs.join(' ').slice(0, 220)}<div class="why">Haiku: ${RATE.reason[x.r.i] || ''}`}</div>`);
+  }
+  tableView(c4, top.flat().map(x => ({ id: `${x.r.s} · ${x.r.t} · ${x.r.f}`, self: x.r.mw, model: MR[x.r.i], d: x.d, cat: LBR(x.r.i) ? CATN[LBR(x.r.i)[0]] : null })),
+    [{ key: 'id', label: 'Subject · TrialNum · Fragment' }, { key: 'self', label: 'osoba (MW w CSV)' }, { key: 'model', label: 'Haiku' }, { key: 'd', label: 'Haiku − osoba' }, { key: 'cat', label: 'kategoria' }]);
+  }
+}
+
+// ===== toc + theme
+d3.select('#toc').selectAll('a').data(sections).join('a').attr('href', s => '#' + s.id).text(s => s.title);
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const r = document.documentElement, cur = r.getAttribute('data-theme');
+  const dark = cur ? cur === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  try { localStorage.setItem('theme', dark ? 'light' : 'dark'); } catch (e) {}
+  location.reload();   // colors are read into SVG attributes at build time, so a theme change re-renders the page
+});
+</script>
+</body>
+</html>

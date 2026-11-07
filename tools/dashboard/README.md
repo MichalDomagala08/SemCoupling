@@ -8,8 +8,10 @@ a one-paragraph interpretation and a table view.
 
 **No data lives in this folder.** `template.html` renders an empty page until
 you build it against your own copy of the data. The built file embeds the
-recalls and the pupil traces, so it is gitignored (`drafts/*.html`,
-`tools/dashboard/*.json`) and must never be committed or shared.
+recalls and the pupil traces, so it is gitignored (`drafts/**/*.html`,
+`tools/dashboard/*.json`) and must never be committed or shared. `build.py … --share`
+writes a results-only copy (no recall or story texts, no per-trial traces, the
+fragment browser and the trial viewer left out) for showing behind a login.
 
 ## Build
 
