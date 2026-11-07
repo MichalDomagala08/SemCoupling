@@ -529,7 +529,7 @@ if (EYE) {
 // ===== 7. trial viewer
 {
   const grid = section('viewer', '7 · Podgląd osoby: 40 triali', EYE ? 'Wybierz osobę i trial: źrenica (1 Hz, surowe jednostki EyeLink), mrugnięcia (czerwone kreski), tekst fragmentu, relacja i sonda.' : 'Wybierz osobę: jej 40 sond MW, teksty i relacje.',
-    'Do oglądania pojedynczych przypadków. Osoby z dużymi skokami MW w sesji (np. DOKL1005, JAJA2108, JUBE1005) to najlepsi kandydaci, żeby sprawdzić gołym okiem, czy źrenica lub mrugnięcia zmieniają się razem z sondą, zanim ktoś zbuduje na tym model.');
+    'Do oglądania pojedynczych przypadków. Osoby z dużymi skokami MW w sesji (widać je na wykresie 40 sond po wybraniu osoby) to najlepsi kandydaci, żeby sprawdzić gołym okiem, czy źrenica lub mrugnięcia zmieniają się razem z sondą, zanim ktoś zbuduje na tym model.');
   const wrap = d3.select(grid).append('div').attr('class', 'card').style('grid-column', '1 / -1');
   const filt = wrap.append('div').attr('class', 'filters');
   filt.append('label').html('Osoba <select id="vSub"></select>');
