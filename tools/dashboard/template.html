@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>SemCoupling Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s7: #6250d6; --s8: #e34948;
+  --seq2: #9ec5f4; --seq4: #3987e5; --seq6: #184f95; --div-mid: #f0efec;
+  --karolina: #6250d6; --janek: #1baf7a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s7: #9085e9; --s8: #e66767;
+    --seq2: #6da7ec; --seq4: #3987e5; --seq6: #86b6ef; --div-mid: #383835;
+    --karolina: #9085e9; --janek: #199e70;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s7: #9085e9; --s8: #e66767;
+  --seq2: #6da7ec; --seq4: #3987e5; --seq6: #86b6ef; --div-mid: #383835;
+  --karolina: #9085e9; --janek: #199e70;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { padding: 28px 16px 8px; max-width: 1240px; margin: 0 auto; }
+h1 { font-size: 26px; margin: 0 0 4px; font-weight: 650; }
+h2 { font-size: 19px; margin: 36px 0 6px; font-weight: 650; }
+h3 { font-size: 15px; margin: 0 0 4px; font-weight: 600; }
+p.lead { color: var(--ink-2); margin: 0; max-width: 820px; }
+main { max-width: 1240px; margin: 0 auto; padding: 0 16px 80px; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 14px 0 0; font-size: 13px; }
+nav.toc a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--border); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.tile .v { font-size: 28px; font-weight: 600; line-height: 1.1; }
+.tile .l { color: var(--ink-2); font-size: 13px; margin-top: 4px; }
+.tile .d { color: var(--muted); font-size: 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; align-items: start; }
+.grid.one { grid-template-columns: 1fr; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 12px; min-width: 0; }
+.card .sub { color: var(--ink-2); font-size: 13px; margin: 0 0 8px; }
+.card .finding { font-size: 13px; color: var(--ink-2); margin-top: 8px; border-top: 1px solid var(--grid); padding-top: 8px; }
+.card .finding b { color: var(--ink); font-weight: 600; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+.grid-line { stroke: var(--grid); stroke-width: 1; }
+.axis-line { stroke: var(--axis); stroke-width: 1; }
+.tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.axis-title { fill: var(--ink-2); font-size: 12px; }
+.lbl { fill: var(--ink-2); font-size: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-2); margin: 4px 0 6px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
+.legend span.line::before { height: 3px; border-radius: 2px; vertical-align: 2px; }
+.tip { position: fixed; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.14); z-index: 20; display: none; max-width: 360px; line-height: 1.4; }
+.tip b { font-weight: 600; }
+.tools { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+button, select, input[type=text] { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 4px 10px; }
+button { cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button.on { background: var(--s1); color: #fff; border-color: var(--s1); }
+table.tv { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; margin-top: 8px; }
+table.tv th, table.tv td { text-align: right; padding: 3px 6px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+table.tv th:first-child, table.tv td:first-child { text-align: left; }
+table.tv th { color: var(--ink-2); font-weight: 600; position: sticky; top: 0; background: var(--surface); }
+.tv-wrap { max-height: 320px; overflow: auto; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 10px 0 12px; font-size: 13px; color: var(--ink-2); }
+.filters label { display: inline-flex; gap: 6px; align-items: center; }
+.frag-list { display: grid; grid-template-columns: 1fr; gap: 2px; max-height: 560px; overflow: auto; }
+.frag { display: grid; grid-template-columns: 34px 34px 1fr 54px; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.frag:hover { background: var(--page); }
+.frag.sel { outline: 2px solid var(--s1); }
+.frag .bar { height: 10px; border-radius: 0 4px 4px 0; background: var(--s1); }
+.frag .hero { font-weight: 600; font-size: 11px; padding: 1px 4px; border-radius: 4px; color: #fff; text-align: center; }
+.hero-K { background: var(--karolina); } .hero-J { background: var(--janek); }
+.story { font-size: 14px; line-height: 1.6; color: var(--ink); background: var(--page); border-radius: 8px; padding: 10px 12px; max-height: 260px; overflow: auto; }
+.recall { border-bottom: 1px solid var(--grid); padding: 8px 2px; font-size: 13.5px; }
+.recall .m { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); margin-bottom: 2px; font-variant-numeric: tabular-nums; }
+.recall .m .mw { font-weight: 600; color: var(--ink); }
+.recall .m .mwbar { display: inline-block; width: 60px; height: 7px; background: var(--grid); border-radius: 4px; vertical-align: middle; position: relative; }
+.recall .m .mwbar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--s8); border-radius: 4px; }
+.recalls { max-height: 520px; overflow: auto; }
+.two { display: grid; grid-template-columns: 1fr 1.2fr; gap: 14px; }
+@media (max-width: 800px) { .two { grid-template-columns: 1fr; } }
+.timeline { display: grid; grid-template-columns: 3fr 1.2fr 2fr; gap: 6px; font-size: 12.5px; margin: 8px 0; }
+.timeline div { background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+.timeline b { display: block; font-weight: 600; }
+.timeline small { color: var(--ink-2); }
+.seq { display: flex; gap: 2px; margin: 6px 0; flex-wrap: wrap; }
+.seq i { width: 22px; height: 16px; border-radius: 3px; font: 600 10px/16px system-ui; text-align: center; color: #fff; font-style: normal; }
+.muted { color: var(--muted); font-size: 12px; }
+.pill { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--ink-2); margin-left: 6px; vertical-align: middle; }
+.theme { position: absolute; right: 16px; top: 16px; }
+.warn { background: var(--page); border-left: 3px solid var(--s4); padding: 8px 12px; font-size: 13px; color: var(--ink-2); border-radius: 0 8px 8px 0; margin: 10px 0; }
+.summary { background: var(--surface); border-left: 3px solid var(--s1); padding: 10px 14px; font-size: 14px; color: var(--ink); border-radius: 0 10px 10px 0; margin: 10px 0 14px; max-width: 980px; line-height: 1.5; }
+.summary b { font-weight: 650; }
+</style>
+</head>
+<body>
+<script>try { const t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
+<div class="tip" id="tip"></div>
+<header>
+  <button class="theme" id="themeBtn" title="Tryb jasny/ciemny">◐</button>
+  <h1>SemCoupling · Strategic Mind Wandering</h1>
+  <p class="lead">Dane behawioralne i okulograficzne eksperymentu BrainHack Kraków 2026 (Domagała, UJ). 58 osób słuchało 40 fragmentów bajki o Karolinie i Janku; po każdym fragmencie sonda „jak bardzo odpłynąłeś” (MW, 0–99) i 25 s ustnej relacji myśli.</p>
+  <nav class="toc" id="toc"></nav>
+  <div class="tiles" id="tiles"></div>
+</header>
+<main id="main"></main>
+
+<script id="data" type="application/json">/*__DATA__*/</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const EYE = D.eye || null;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (x, d = 1) => (x == null || Number.isNaN(x)) ? '–' : (+x).toFixed(d);
+const pct = x => x == null ? '–' : (100 * x).toFixed(0) + '%';
+const pval = p => p == null ? '' : (p < 0.001 ? 'p < 0.001' : 'p = ' + p.toFixed(3));
+const EXP = { Exp1_Cued: { name: 'Exp1 · wskazany bohater', c: '--s1' }, Exp2_Preference: { name: 'Exp2 · ocena ciekawości', c: '--s2' } };
+const heroC = h => h === 'KAROLINA' ? '--karolina' : '--janek';
+
+// ---------- tooltip
+const tip = document.getElementById('tip');
+function showTip(html, ev) { tip.innerHTML = html; tip.style.display = 'block'; moveTip(ev); }
+function moveTip(ev) { const w = tip.offsetWidth, h = tip.offsetHeight; let x = ev.clientX + 14, y = ev.clientY + 14; if (x + w > innerWidth - 8) x = ev.clientX - w - 14; if (y + h > innerHeight - 8) y = ev.clientY - h - 14; tip.style.left = x + 'px'; tip.style.top = y + 'px'; }
+function hideTip() { tip.style.display = 'none'; }
+
+// ---------- chart scaffolding
+function frame(sel, W, H, m) {
+  const svg = d3.select(sel).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+  const g = svg.append('g').attr('transform', `translate(${m.l},${m.t})`);
+  return { svg, g, w: W - m.l - m.r, h: H - m.t - m.b };
+}
+function yGrid(g, y, w, ticks = 5) {
+  g.append('g').selectAll('line').data(y.ticks(ticks)).join('line').attr('class', 'grid-line').attr('x1', 0).attr('x2', w).attr('y1', d => y(d)).attr('y2', d => y(d));
+  g.append('g').selectAll('text').data(y.ticks(ticks)).join('text').attr('class', 'tick').attr('x', -8).attr('y', d => y(d) + 4).attr('text-anchor', 'end').text(d => d);
+}
+function xAxis(g, x, h, ticks, fmtf = d => d) {
+  g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', x.range()[1]).attr('y1', h).attr('y2', h);
+  g.append('g').selectAll('text').data(ticks).join('text').attr('class', 'tick').attr('x', d => x(d)).attr('y', h + 16).attr('text-anchor', 'middle').text(fmtf);
+}
+function axisTitle(g, txt, w, h, axis) {
+  if (axis === 'x') g.append('text').attr('class', 'axis-title').attr('x', w / 2).attr('y', h + 34).attr('text-anchor', 'middle').text(txt);
+  else g.append('text').attr('class', 'axis-title').attr('transform', `translate(-36,${h / 2}) rotate(-90)`).attr('text-anchor', 'middle').text(txt);
+}
+function card(parent, title, sub, { wide = false } = {}) {
+  const c = d3.select(parent).append('div').attr('class', 'card').style('grid-column', wide ? '1 / -1' : null);
+  c.append('h3').text(title);
+  if (sub) c.append('p').attr('class', 'sub').html(sub);
+  return c;
+}
+function legend(c, items) {
+  const l = c.append('div').attr('class', 'legend');
+  items.forEach(it => l.append('span').attr('class', it.line ? 'line' : null).style('--c', css(it.c)).text(it.t));
+}
+function finding(c, html) { c.append('div').attr('class', 'finding').html(html); }
+// table-view twin: button toggles a table built from rows [{col: val}]
+function tableView(c, rows, cols) {
+  const tools = c.append('div').attr('class', 'tools');
+  const wrap = c.append('div').attr('class', 'tv-wrap').style('display', 'none');
+  const btn = tools.append('button').text('Tabela').on('click', () => { const on = wrap.style('display') === 'none'; wrap.style('display', on ? 'block' : 'none'); btn.classed('on', on); });
+  const t = wrap.append('table').attr('class', 'tv');
+  t.append('thead').append('tr').selectAll('th').data(cols).join('th').text(d => d.label);
+  t.append('tbody').selectAll('tr').data(rows).join('tr').selectAll('td').data(r => cols.map(cl => cl.f ? cl.f(r[cl.key], r) : r[cl.key])).join('td').text(d => d == null ? '–' : d);
+}
+function hover(selection, html) {
+  selection.on('mouseenter', (ev, d) => showTip(html(d), ev)).on('mousemove', moveTip).on('mouseleave', hideTip);
+}
+
+// ---------- sections
+const main = d3.select('#main');
+const sections = [];
+function section(id, title, lead, wniosek) {
+  sections.push({ id, title });
+  const s = main.append('section').attr('id', id);
+  s.append('h2').text(title);
+  if (lead) s.append('p').attr('class', 'lead').html(lead);
+  if (wniosek) s.append('div').attr('class', 'summary').html('<b>Wniosek.</b> ' + wniosek);
+  return s.append('div').attr('class', 'grid').node();
+}
+
+// ===== tiles
+{
+  const t = d3.select('#tiles');
+  const m = D.meta;
+  const tiles = [
+    [m.n_subjects, 'uczestników', '29 + 29 w dwóch eksperymentach'],
+    [m.n_trials, 'fragmentów bajki', '~45 s każdy, 20 Karolina + 20 Janek'],
+    [m.n_recalls.toLocaleString('pl'), 'relacji myśli', `${m.exp.Exp1_Cued.recalls} w Exp1, ${m.exp.Exp2_Preference.recalls} w Exp2`],
+    [fmt(m.exp.Exp1_Cued.mean_mw, 0) + ' / ' + fmt(m.exp.Exp2_Preference.mean_mw, 0), 'średnie MW (0–99)', 'Exp1 / Exp2'],
+  ];
+  if (EYE) tiles.push([EYE.n_trials.toLocaleString('pl'), 'triali z pupilą', `${EYE.n_subjects} osób, 100 Hz`]);
+  tiles.forEach(([v, l, d]) => { const e = t.append('div').attr('class', 'tile'); e.append('div').attr('class', 'v').text(v); e.append('div').attr('class', 'l').text(l); e.append('div').attr('class', 'd').text(d); });
+}
+
+// ===== 1. experiment
+{
+  const grid = section('exp', '1 · Jak wyglądał eksperyment', 'Jedna sesja to 40 triali w stałej kolejności. Fragmenty obu bohaterów przeplatają się: KAROLINA_1, JANEK_1, KAROLINA_2 … Wszystko przy krzyżu fiksacyjnym, EyeLink 1000 (500 Hz, w danych 100 Hz).',
+    'Etykieta stanu jest rzadka: jedna liczba i jedna wypowiedź na ~45 s, a sygnał z oka jest ciągły. Cały problem hackathonu to przerzucić most między tą rzadką etykietą a ciągłym sygnałem, i te dane dają do tego dwa „uchwyty”: instrukcję (Exp1) i ocenę ciekawości (Exp2).');
+  const c = card(grid, 'Jeden trial', null, { wide: true });
+  const tl = c.append('div').attr('class', 'timeline');
+  tl.append('div').html('<b>1. Słuchanie fragmentu</b><small>~45 s, audio TTS, wzrok na krzyżu fiksacyjnym. Tu zbierana jest pupila, mrugnięcia, sakady.</small>');
+  tl.append('div').html('<b>2. Sonda MW</b><small>„W jakim stopniu byłeś rozproszony?” suwak 0–99.</small>');
+  tl.append('div').html('<b>3. Relacja myśli</b><small>Ustnie, max 25 s: „Opisz przebieg swoich myśli od ostatniej przerwy”. Transkrypcja Whisperem, lematyzacja Morfeuszem.</small>');
+  c.append('div').attr('class', 'muted').text('Kolejność 40 fragmentów (K = Karolina, J = Janek):');
+  const seq = c.append('div').attr('class', 'seq');
+  D.fragments.forEach(f => seq.append('i').attr('class', 'hero-' + f.hero[0]).text(f.hero[0]).attr('title', `${f.trial}. ${f.fragment}`));
+  const two = c.append('div').attr('class', 'two').style('margin-top', '10px');
+  two.append('div').html(`<b style="color:${css('--s1')}">Exp1 · wskazany bohater</b> (${D.meta.exp.Exp1_Cued.subjects} osób)<br><span class="muted">Przed bajką: „Skup się i zapamiętaj wszystko o bohaterze o imieniu X”. Fragmenty X są <b>TRACKED</b>, drugiego bohatera <b>UNTRACKED</b>. Pytanie: czy ludzie strategicznie „odpływają” w fragmentach, które nie są im potrzebne?</span>`);
+  two.append('div').html(`<b style="color:${css('--s2')}">Exp2 · ocena ciekawości</b> (${D.meta.exp.Exp2_Preference.subjects} osób, ${D.meta.exp.Exp2_Preference.subjects_with_recalls} z relacjami)<br><span class="muted">Bez instrukcji; po każdym fragmencie dodatkowo ocena „jak ciekawy był ten fragment” (0–100). Pytanie: czy nudniejsze fragmenty = więcej mind wanderingu?</span>`);
+  c.append('div').attr('class', 'warn').html('Bajka ma dwoje rodzeństwa o różnej moralności: Janek uczciwy cieśla, Karolina sprytna i interesowna. Tekst wygenerowany przez GPT-4o i czytany syntezatorem mowy. Fragmenty obu bohaterów są wyrównane pod względem długości i czytelności.');
+}
+
+// ===== 2. MW over trials
+{
+  const grid = section('mw', '2 · Mind wandering w czasie', 'Średnia odpowiedź na sondę (0–99) po każdym z 40 fragmentów, osobno dla obu eksperymentów. Pasmo = ±1 SEM.',
+    'MW rośnie w trakcie sesji w obu grupach, a grupa bez instrukcji (Exp2) odpływa wyraźnie więcej niż grupa z zadaniem (Exp1). Poza fragmentem 8 (najniżej oceniony jako ciekawy i szczyt MW w Exp2) przebiegi nie dzielą wspólnych szczytów, więc to nie konkretne fragmenty „usypiają”, tylko czas i brak celu.');
+  const c = card(grid, 'Przebieg MW przez 40 fragmentów', 'Exp2 zaczyna wyżej i rośnie bardziej. Pod osią: bohater fragmentu.', { wide: true });
+  legend(c, [{ t: EXP.Exp1_Cued.name, c: '--s1', line: true }, { t: EXP.Exp2_Preference.name, c: '--s2', line: true }, { t: 'Karolina', c: '--karolina' }, { t: 'Janek', c: '--janek' }]);
+  const W = 1160, H = 330, m = { l: 48, t: 10, r: 16, b: 58 };
+  const { g, w, h } = frame(c.node(), W, H, m);
+  const x = d3.scaleLinear().domain([1, 40]).range([0, w]);
+  const y = d3.scaleLinear().domain([0, 60]).range([h, 0]);
+  yGrid(g, y, w, 6); xAxis(g, x, h, d3.range(1, 41, 3)); axisTitle(g, 'numer fragmentu (trial)', w, h, 'x'); axisTitle(g, 'MW (0–99)', w, h, 'y');
+  D.fragments.forEach(f => g.append('rect').attr('x', x(f.trial) - 6).attr('y', h + 42).attr('width', 12).attr('height', 5).attr('rx', 1.5).attr('fill', css(heroC(f.hero))));
+  const rows = [];
+  for (const e of ['Exp1_Cued', 'Exp2_Preference']) {
+    const cv = D.curves[e], col = css(EXP[e].c);
+    const pts = cv.mean.map((v, i) => ({ t: i + 1, v, s: cv.sem[i] }));
+    g.append('path').datum(pts).attr('fill', col).attr('opacity', .14).attr('d', d3.area().x(d => x(d.t)).y0(d => y(d.v - d.s)).y1(d => y(d.v + d.s)).curve(d3.curveMonotoneX));
+    g.append('path').datum(pts).attr('fill', 'none').attr('stroke', col).attr('stroke-width', 2).attr('d', d3.line().x(d => x(d.t)).y(d => y(d.v)).curve(d3.curveMonotoneX));
+    g.append('text').attr('class', 'lbl').attr('x', x(40) + 4).attr('y', y(pts[39].v) + 4).attr('fill', col).text(e === 'Exp1_Cued' ? 'Exp1' : 'Exp2');
+    pts.forEach(p => rows.push({ exp: e, trial: p.t, mw: p.v, sem: p.s }));
+  }
+  // crosshair
+  const cross = g.append('line').attr('class', 'axis-line').attr('y1', 0).attr('y2', h).style('display', 'none');
+  const dots = g.append('g');
+  g.append('rect').attr('width', w).attr('height', h).attr('fill', 'transparent')
+    .on('mousemove', ev => { const t = Math.round(x.invert(d3.pointer(ev)[0])); if (t < 1 || t > 40) return; cross.style('display', null).attr('x1', x(t)).attr('x2', x(t));
+      const f = D.fragments[t - 1];
+      dots.selectAll('circle').data(['Exp1_Cued', 'Exp2_Preference']).join('circle').attr('r', 4.5).attr('cx', x(t)).attr('cy', e => y(D.curves[e].mean[t - 1])).attr('fill', e => css(EXP[e].c)).attr('stroke', css('--surface')).attr('stroke-width', 2);
+      showTip(`<b>Trial ${t} · ${f.fragment}</b><br>Exp1: ${fmt(D.curves.Exp1_Cued.mean[t - 1])} ± ${fmt(D.curves.Exp1_Cued.sem[t - 1])}<br>Exp2: ${fmt(D.curves.Exp2_Preference.mean[t - 1])} ± ${fmt(D.curves.Exp2_Preference.sem[t - 1])}<br>ciekawość (Exp2): ${fmt(f.pref)}`, ev); })
+    .on('mouseleave', () => { cross.style('display', 'none'); dots.selectAll('circle').remove(); hideTip(); });
+  const tt = D.time_on_task;
+  finding(c, `<b>Efekt czasu na zadaniu:</b> ostatnie 10 fragmentów vs pierwsze 10: +${fmt(tt.mean_diff)} pkt MW (SEM ${fmt(tt.sem_diff)}), wzrost u ${tt.n_increase}/${tt.n} osób, t = ${tt.t}, ${pval(tt.p)}. Korelacja trial–MW (z) r = ${tt.r_trial_mwz}.`);
+  tableView(c, rows, [{ key: 'exp', label: 'Eksperyment' }, { key: 'trial', label: 'Trial' }, { key: 'mw', label: 'MW śr.' }, { key: 'sem', label: 'SEM' }]);
+
+  // histogram
+  const c2 = card(grid, 'Rozkład odpowiedzi na sondę', 'Liczba triali w przedziałach po 5 pkt. Exp1 ma „podłogę” przy zerze: 400 z 1160 odpowiedzi poniżej 5.');
+  legend(c2, [{ t: 'Exp1', c: '--s1' }, { t: 'Exp2', c: '--s2' }]);
+  const hb = D.mw_hist, n = hb.counts.length;
+  const f2 = frame(c2.node(), 560, 240, { l: 44, t: 8, r: 8, b: 44 });
+  const xb = d3.scaleBand().domain(d3.range(n)).range([0, f2.w]).paddingInner(0.25);
+  const yb = d3.scaleLinear().domain([0, d3.max([...hb.by_exp.Exp1_Cued, ...hb.by_exp.Exp2_Preference])]).nice().range([f2.h, 0]);
+  yGrid(f2.g, yb, f2.w, 4);
+  f2.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f2.w).attr('y1', f2.h).attr('y2', f2.h);
+  f2.g.append('g').selectAll('text').data(d3.range(0, n, 4)).join('text').attr('class', 'tick').attr('x', d => xb(d)).attr('y', f2.h + 16).text(d => hb.edges[d]);
+  axisTitle(f2.g, 'MW (0–99)', f2.w, f2.h, 'x'); axisTitle(f2.g, 'liczba triali', f2.w, f2.h, 'y');
+  const bw = (xb.bandwidth() - 2) / 2;
+  ['Exp1_Cued', 'Exp2_Preference'].forEach((e, k) => {
+    hover(f2.g.append('g').selectAll('rect').data(hb.by_exp[e]).join('rect').attr('x', (d, i) => xb(i) + k * (bw + 2)).attr('y', d => yb(d)).attr('width', bw).attr('height', d => f2.h - yb(d)).attr('rx', 2).attr('fill', css(EXP[e].c)),
+      (d) => `<b>${EXP[e].name}</b><br>${d} triali`);
+  });
+  finding(c2, `<b>Grupy inaczej używają skali.</b> Exp1 ma ${hb.by_exp.Exp1_Cued[0]} odpowiedzi poniżej 5, Exp2 tylko ${hb.by_exp.Exp2_Preference[0]}. Surowe MW nie jest porównywalne między grupami, dlatego porównania dalej idą na z-score wewnątrz osoby.`);
+  tableView(c2, hb.counts.map((_, i) => ({ bin: `${hb.edges[i]}–${hb.edges[i + 1]}`, e1: hb.by_exp.Exp1_Cued[i], e2: hb.by_exp.Exp2_Preference[i] })), [{ key: 'bin', label: 'MW' }, { key: 'e1', label: 'Exp1' }, { key: 'e2', label: 'Exp2' }]);
+
+  // subjects
+  const c3 = card(grid, 'Uczestnicy: średnie MW', 'Każda kropka to jedna osoba (średnia z 40 sond), wąs = ±1 SD. Różnice między osobami są większe niż jakikolwiek efekt warunku.');
+  legend(c3, [{ t: 'Exp1', c: '--s1' }, { t: 'Exp2', c: '--s2' }]);
+  const f3 = frame(c3.node(), 560, 240, { l: 44, t: 8, r: 8, b: 30 });
+  const xs = d3.scalePoint().domain(D.subjects.map(s => s.id)).range([0, f3.w]).padding(0.5);
+  const ys = d3.scaleLinear().domain([0, 100]).range([f3.h, 0]);
+  yGrid(f3.g, ys, f3.w, 5);
+  f3.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f3.w).attr('y1', f3.h).attr('y2', f3.h);
+  axisTitle(f3.g, 'osoby, posortowane', f3.w, f3.h, 'x'); axisTitle(f3.g, 'MW', f3.w, f3.h, 'y');
+  const sg = f3.g.append('g').selectAll('g').data(D.subjects).join('g');
+  sg.append('line').attr('x1', s => xs(s.id)).attr('x2', s => xs(s.id)).attr('y1', s => ys(Math.max(0, s.mean_mw - s.sd_mw))).attr('y2', s => ys(Math.min(100, s.mean_mw + s.sd_mw))).attr('stroke', s => css(EXP[s.exp].c)).attr('opacity', .35);
+  sg.append('circle').attr('cx', s => xs(s.id)).attr('cy', s => ys(s.mean_mw)).attr('r', 4).attr('fill', s => css(EXP[s.exp].c)).attr('stroke', css('--surface')).attr('stroke-width', 1.5).style('cursor', 'pointer').on('click', (ev, s) => { selectSubject(s.id); location.hash = '#viewer'; });
+  hover(sg, s => `<b>${s.id}</b> · ${EXP[s.exp].name}<br>MW ${fmt(s.mean_mw)} ± ${fmt(s.sd_mw)}<br>relacji: ${s.n_recalls}/40 · śr. ${fmt(s.words, 0)} słów<br><span class="muted">kliknij: podgląd triali</span>`);
+  finding(c3, `<b>Rozstęp średnich od ${fmt(D.subjects[0].mean_mw)} do ${fmt(D.subjects[D.subjects.length - 1].mean_mw)}.</b> Osoby na dole (np. ${D.subjects[0].id}) prawie nie dają wariancji do modelowania, a model walidowany „bez jednej osoby” musi sobie poradzić także z nimi. Kliknięcie kropki otwiera 40 triali tej osoby w sekcji 7.`);
+  tableView(c3, D.subjects, [{ key: 'id', label: 'ID' }, { key: 'exp', label: 'Exp' }, { key: 'mean_mw', label: 'MW śr.' }, { key: 'sd_mw', label: 'SD' }, { key: 'n_recalls', label: 'relacji' }, { key: 'words', label: 'słów śr.' }, { key: 'coupling', label: 'sprzężenie' }]);
+}
+
+// ===== 3. hypotheses
+{
+  const grid = section('hyp', '3 · Hipotezy: komu i kiedy „odpływa” myśl', 'Trzy porównania wewnątrz osoby. Każda linia lub kropka to jeden uczestnik.',
+    'Dwa efekty są realne i średniej wielkości: instrukcja „śledź bohatera” obniża MW w jego fragmentach, a nuda je podnosi. Sam bohater nic nie robi, czas na zadaniu robi najwięcej. Największa zmienność siedzi jednak między osobami (średnie od 1 do 60), więc każdy model trzeba liczyć wewnątrz osoby, a nie na surowym MW.');
+  // tracking
+  const tr = D.tracking;
+  const c = card(grid, 'Exp1: fragment wskazanego bohatera vs. drugiego', `Czy MW jest wyższe w fragmentach, których nie trzeba pamiętać? Linie: ${tr.n} osób, gruba: średnia.`);
+  const f = frame(c.node(), 560, 300, { l: 44, t: 16, r: 16, b: 36 });
+  const xp = d3.scalePoint().domain(['tracked', 'untracked']).range([0, f.w]).padding(0.3);
+  const yp = d3.scaleLinear().domain([0, d3.max(tr.pairs, p => Math.max(p.tracked, p.untracked))]).nice().range([f.h, 0]);
+  yGrid(f.g, yp, f.w, 5); axisTitle(f.g, 'MW', f.w, f.h, 'y');
+  f.g.append('g').selectAll('text').data(['tracked', 'untracked']).join('text').attr('class', 'tick').attr('x', d => xp(d)).attr('y', f.h + 18).attr('text-anchor', 'middle').style('font-size', '12px').text(d => d === 'tracked' ? 'TRACKED (wskazany)' : 'UNTRACKED (drugi)');
+  hover(f.g.append('g').selectAll('line').data(tr.pairs).join('line').attr('x1', xp('tracked')).attr('x2', xp('untracked')).attr('y1', p => yp(p.tracked)).attr('y2', p => yp(p.untracked)).attr('stroke', p => p.diff > 0 ? css('--s1') : css('--muted')).attr('stroke-width', 1.5).attr('opacity', .55),
+    p => `<b>${p.id}</b> (śledzi: ${p.tracked_hero})<br>tracked ${fmt(p.tracked)} → untracked ${fmt(p.untracked)}<br>różnica ${p.diff > 0 ? '+' : ''}${fmt(p.diff)}`);
+  f.g.append('line').attr('x1', xp('tracked')).attr('x2', xp('untracked')).attr('y1', yp(tr.mean_tracked)).attr('y2', yp(tr.mean_untracked)).attr('stroke', css('--s1')).attr('stroke-width', 4);
+  [['tracked', tr.mean_tracked, -10], ['untracked', tr.mean_untracked, 10]].forEach(([k, v, dx]) => f.g.append('text').attr('class', 'lbl').attr('x', xp(k) + dx).attr('y', yp(v) + 4).attr('text-anchor', dx < 0 ? 'end' : 'start').style('font-weight', 600).attr('fill', css('--ink')).text(fmt(v)));
+  finding(c, `<b>Tak, i wyraźnie.</b> Untracked wyżej o ${fmt(tr.mean_diff)} pkt (SEM ${fmt(tr.sem_diff)}) u ${tr.n_positive}/${tr.n} osób; t(${tr.n - 1}) = ${tr.t}, ${pval(tr.p_t)}; Wilcoxon ${pval(tr.p_wilcoxon)}; d<sub>z</sub> = ${tr.cohen_dz}. Niebieskie linie: osoby z efektem w oczekiwanym kierunku.`);
+  tableView(c, tr.pairs, [{ key: 'id', label: 'ID' }, { key: 'tracked_hero', label: 'śledzi' }, { key: 'tracked', label: 'tracked' }, { key: 'untracked', label: 'untracked' }, { key: 'diff', label: 'różnica' }]);
+
+  // preference
+  const pr = D.preference;
+  const c2 = card(grid, 'Exp2: ciekawość fragmentu vs. MW', 'Oba w z-score wewnątrz osoby. Kropki: 1160 triali (29 osób × 40). Linia: średnia MW w przedziałach ciekawości ±1 SEM.');
+  const f2 = frame(c2.node(), 560, 300, { l: 44, t: 8, r: 16, b: 44 });
+  const x2 = d3.scaleLinear().domain([-3, 3]).range([0, f2.w]);
+  const y2 = d3.scaleLinear().domain([-2.5, 3.5]).range([f2.h, 0]);
+  yGrid(f2.g, y2, f2.w, 6); xAxis(f2.g, x2, f2.h, d3.range(-3, 4)); axisTitle(f2.g, 'ciekawość fragmentu (z wewnątrz osoby)', f2.w, f2.h, 'x'); axisTitle(f2.g, 'MW (z)', f2.w, f2.h, 'y');
+  f2.g.append('g').selectAll('circle').data(pr.points).join('circle').attr('cx', p => x2(p.x)).attr('cy', p => y2(p.y)).attr('r', 2.6).attr('fill', css('--s2')).attr('opacity', .3);
+  const bc = pr.binned.map((b, i) => ({ ...b, x: [-2.25, -1.25, -0.75, -0.25, 0.25, 0.75, 1.25, 2.25][i] }));
+  f2.g.append('path').datum(bc).attr('fill', 'none').attr('stroke', css('--ink')).attr('stroke-width', 2).attr('d', d3.line().x(d => x2(d.x)).y(d => y2(d.mean)));
+  const bg = f2.g.append('g').selectAll('g').data(bc).join('g');
+  bg.append('line').attr('x1', d => x2(d.x)).attr('x2', d => x2(d.x)).attr('y1', d => y2(d.mean - d.sem)).attr('y2', d => y2(d.mean + d.sem)).attr('stroke', css('--ink')).attr('stroke-width', 1.5);
+  bg.append('circle').attr('cx', d => x2(d.x)).attr('cy', d => y2(d.mean)).attr('r', 4.5).attr('fill', css('--ink')).attr('stroke', css('--surface')).attr('stroke-width', 2);
+  hover(bg, d => `<b>ciekawość ${d.label}</b><br>MW z = ${fmt(d.mean, 2)} ± ${fmt(d.sem, 2)}<br>n = ${d.n} triali`);
+  // nearest point tooltip for scatter via voronoi-ish: quadtree
+  const qt = d3.quadtree().x(p => x2(p.x)).y(p => y2(p.y)).addAll(pr.points);
+  f2.g.append('rect').attr('width', f2.w).attr('height', f2.h).attr('fill', 'transparent').lower()
+    .on('mousemove', ev => { const [mx, my] = d3.pointer(ev); const p = qt.find(mx, my, 14); if (p) showTip(`<b>${p.s}</b> · trial ${p.t} (${p.h})<br>ciekawość z = ${fmt(p.x, 2)}, MW z = ${fmt(p.y, 2)}`, ev); else hideTip(); }).on('mouseleave', hideTip);
+  finding(c2, `<b>Im nudniej, tym więcej MW.</b> r = ${pr.r} (n = ${pr.n}); średnia korelacja wewnątrz osoby r = ${pr.within_mean_r}, ujemna u ${pr.within_n_negative}/${pr.within.length} osób. Ciekawość bohaterów: Janek ${fmt(pr.pref_by_hero.JANEK)}, Karolina ${fmt(pr.pref_by_hero.KAROLINA)}.`);
+  tableView(c2, pr.within, [{ key: 'id', label: 'ID' }, { key: 'r', label: 'r (ciekawość, MW)' }]);
+
+  // hero + time on task
+  const hr = D.hero;
+  const c3 = card(grid, 'Karolina vs. Janek', 'Średnie MW w fragmentach każdego z bohaterów, per osoba. Bohaterowie różnią się moralnie, ale nie „odpływalnością”.');
+  pairedDots(c3, hr.pairs.map(p => ({ id: p.id, exp: p.exp, a: p.KAROLINA, b: p.JANEK })), ['Karolina', 'Janek'], ['--karolina', '--janek'], 'MW');
+  finding(c3, `<b>Brak efektu.</b> Karolina ${fmt(hr.mean.KAROLINA)} vs Janek ${fmt(hr.mean.JANEK)}; różnica ${fmt(hr.mean_diff)} (SEM ${fmt(hr.sem_diff)}), t = ${hr.t}, ${pval(hr.p)}.`);
+  tableView(c3, hr.pairs, [{ key: 'id', label: 'ID' }, { key: 'exp', label: 'Exp' }, { key: 'KAROLINA', label: 'Karolina' }, { key: 'JANEK', label: 'Janek' }]);
+
+  const tt = D.time_on_task;
+  const c4 = card(grid, 'Początek vs. koniec sesji', 'Średnie MW w fragmentach 1–10 i 31–40, per osoba.');
+  pairedDots(c4, tt.pairs.map(p => ({ id: p.id, a: p.first10, b: p.last10 })), ['fragmenty 1–10', 'fragmenty 31–40'], ['--s3', '--s8'], 'MW');
+  finding(c4, `<b>MW rośnie z czasem.</b> +${fmt(tt.mean_diff)} pkt (SEM ${fmt(tt.sem_diff)}), wzrost u ${tt.n_increase}/${tt.n} osób, t = ${tt.t}, ${pval(tt.p)}. Dla detekcji ciągłej to oznacza, że „czas w zadaniu” jest cechą, którą model dostanie za darmo.`);
+  tableView(c4, tt.pairs, [{ key: 'id', label: 'ID' }, { key: 'first10', label: '1–10' }, { key: 'last10', label: '31–40' }]);
+}
+function pairedDots(c, pairs, labels, cols, ylab) {
+  legend(c, [{ t: labels[0], c: cols[0] }, { t: labels[1], c: cols[1] }]);
+  const f = frame(c.node(), 560, 240, { l: 44, t: 8, r: 8, b: 30 });
+  const sorted = pairs.slice().sort((p, q) => (p.a + p.b) - (q.a + q.b));
+  const x = d3.scalePoint().domain(sorted.map(p => p.id)).range([0, f.w]).padding(0.5);
+  const y = d3.scaleLinear().domain([0, 100]).range([f.h, 0]);
+  yGrid(f.g, y, f.w, 5); f.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f.w).attr('y1', f.h).attr('y2', f.h);
+  axisTitle(f.g, 'osoby, posortowane', f.w, f.h, 'x'); axisTitle(f.g, ylab, f.w, f.h, 'y');
+  const g = f.g.append('g').selectAll('g').data(sorted).join('g');
+  g.append('line').attr('x1', p => x(p.id)).attr('x2', p => x(p.id)).attr('y1', p => y(p.a)).attr('y2', p => y(p.b)).attr('stroke', css('--axis'));
+  g.append('circle').attr('cx', p => x(p.id)).attr('cy', p => y(p.a)).attr('r', 3.5).attr('fill', css(cols[0]));
+  g.append('circle').attr('cx', p => x(p.id)).attr('cy', p => y(p.b)).attr('r', 3.5).attr('fill', css(cols[1]));
+  hover(g, p => `<b>${p.id}</b><br>${labels[0]}: ${fmt(p.a)}<br>${labels[1]}: ${fmt(p.b)}`);
+}
+
+// ===== 4. recalls
+{
+  const grid = section('rec', '4 · Co ludzie mówią o swoich myślach', 'Cechy relacji w przedziałach odpowiedzi na sondę. „Sprzężenie z historią” = odsetek lematów relacji (bez stopwords), które występują w lematach fragmentu; tania wersja miary semantycznej, bez sBERT.',
+    'Forma relacji prawie nie zależy od MW: długość rośnie minimalnie, odniesienia do siebie i nakładanie słów z historią są płaskie. Za to treść tak: przy skupieniu ludzie streszczają fabułę, przy odpływaniu mówią o mamie, planach, zakupach i o samym eksperymencie. To argument, żeby cechy tekstu liczyć na znaczeniu (sBERT, LLM), nie na prostych metrykach.');
+  const fb = D.feat_by_mw;
+  const specs = [
+    ['words', 'words_sem', 'Długość relacji (słowa)', 'Dłuższe relacje przy wyższym MW. r(słowa, MW z) = ' + fmt(D.recall_corr.words.r, 2), 1],
+    ['coupling', 'coupling_sem', 'Sprzężenie leksykalne z historią', 'Płaskie. Ludzie „skupieni” wcale nie streszczają fragmentu; mówią o tym, że byli skupieni. r = ' + fmt(D.recall_corr.coupling.r, 2), 3],
+    ['self_rate', 'self_sem', 'Odniesienia do siebie (udział słów)', 'Zaimki 1 os. + czasowniki -łem/-łam na słowo. Brak zależności. r = ' + fmt(D.recall_corr.self_rate.r, 2), 3],
+    ['no_thoughts', null, 'Relacja tylko o stanie uwagi (udział)', 'Sędziowie: „nie ma treści, tylko np. «byłem skupiony»”. Spada z MW: odpływający mają co opowiadać.', 2],
+    ['attn', null, 'Relacja z jawną deklaracją uwagi (udział)', 'Przy MW 0–10 co druga relacja mówi wprost o skupieniu.', 2],
+  ];
+  for (const [k, sk, title, sub, dec] of specs) {
+    const c = card(grid, title, sub);
+    const f = frame(c.node(), 560, 200, { l: 52, t: 8, r: 8, b: 40 });
+    const x = d3.scaleBand().domain(fb.map(b => b.label)).range([0, f.w]).paddingInner(0.35).paddingOuter(0.2);
+    const y = d3.scaleLinear().domain([0, d3.max(fb, b => b[k] + (sk ? b[sk] : 0)) * 1.1]).nice().range([f.h, 0]);
+    yGrid(f.g, y, f.w, 4); f.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f.w).attr('y1', f.h).attr('y2', f.h);
+    f.g.append('g').selectAll('text').data(fb).join('text').attr('class', 'tick').attr('x', b => x(b.label) + x.bandwidth() / 2).attr('y', f.h + 16).attr('text-anchor', 'middle').text(b => b.label);
+    axisTitle(f.g, 'MW (sonda 0–99)', f.w, f.h, 'x');
+    const g = f.g.append('g').selectAll('g').data(fb).join('g');
+    g.append('rect').attr('x', b => x(b.label)).attr('y', b => y(b[k])).attr('width', x.bandwidth()).attr('height', b => f.h - y(b[k])).attr('rx', 3).attr('fill', css('--s1'));
+    if (sk) g.append('line').attr('x1', b => x(b.label) + x.bandwidth() / 2).attr('x2', b => x(b.label) + x.bandwidth() / 2).attr('y1', b => y(b[k] - b[sk])).attr('y2', b => y(b[k] + b[sk])).attr('stroke', css('--ink')).attr('stroke-width', 1.5);
+    g.append('text').attr('class', 'tick').attr('x', b => x(b.label) + x.bandwidth() / 2).attr('y', b => y(b[k]) - 6).attr('text-anchor', 'middle').attr('fill', css('--ink-2')).text(b => fmt(b[k], dec));
+    hover(g, b => `<b>MW ${b.label}</b> · n = ${b.n}<br>${title}: ${fmt(b[k], dec)}${sk ? ' ± ' + fmt(b[sk], dec) : ''}`);
+    tableView(c, fb, [{ key: 'label', label: 'MW' }, { key: 'n', label: 'n' }, { key: k, label: title }]);
+  }
+  // words
+  const wd = D.words;
+  const c = card(grid, 'Słowa typowe dla odpływania i dla skupienia', `Log<sub>2</sub> ilorazu częstości dokumentowej lematu w relacjach z MW powyżej mediany (n = ${wd.n_hi}) vs poniżej (n = ${wd.n_lo}); tylko lematy w ≥ 15 relacjach.`);
+  legend(c, [{ t: 'częstsze przy niskim MW (skupienie)', c: '--s1' }, { t: 'częstsze przy wysokim MW (odpływanie)', c: '--s8' }]);
+  const items = [...wd.low_mw.slice(0, 14).reverse(), ...wd.high_mw.slice(0, 14)];
+  const f = frame(c.node(), 560, 20 * items.length + 30, { l: 110, t: 4, r: 40, b: 24 });
+  const y = d3.scaleBand().domain(items.map(d => d.w)).range([0, f.h]).paddingInner(0.25);
+  const x = d3.scaleLinear().domain([-2.5, 2.5]).range([0, f.w]);
+  f.g.append('line').attr('class', 'axis-line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', 0).attr('y2', f.h);
+  f.g.append('g').selectAll('text').data([-2, -1, 0, 1, 2]).join('text').attr('class', 'tick').attr('x', d => x(d)).attr('y', f.h + 14).attr('text-anchor', 'middle').text(d => d);
+  const g = f.g.append('g').selectAll('g').data(items).join('g');
+  g.append('rect').attr('x', d => Math.min(x(0), x(Math.max(-2.5, Math.min(2.5, d.lor))))).attr('y', d => y(d.w)).attr('width', d => Math.abs(x(Math.max(-2.5, Math.min(2.5, d.lor))) - x(0))).attr('height', y.bandwidth()).attr('rx', 3).attr('fill', d => d.lor < 0 ? css('--s1') : css('--s8'));
+  g.append('text').attr('class', 'lbl').attr('x', d => d.lor < 0 ? x(0) + 6 : x(0) - 6).attr('y', d => y(d.w) + y.bandwidth() / 2 + 4).attr('text-anchor', d => d.lor < 0 ? 'start' : 'end').text(d => d.w);
+  hover(g, d => `<b>${d.w}</b><br>wysokie MW: ${d.hi} relacji (${pct(d.rate_hi)})<br>niskie MW: ${d.lo} relacji (${pct(d.rate_lo)})<br>log2 ilorazu = ${fmt(d.lor, 2)}`);
+  finding(c, 'Przy skupieniu: „pieniądz”, „przebieg”, „spotkać”, „opowiadać”: ludzie streszczają fabułę. Przy odpływaniu: „mama”, „plan”, „kupić”, „czytać”, „rozmawiać”, „przerwa”: codzienne życie, a także „rozpraszać”, „krzyżyk”, „niewygodnie”: komentarz do samego eksperymentu.');
+  tableView(c, [...wd.low_mw, ...wd.high_mw], [{ key: 'w', label: 'lemat' }, { key: 'hi', label: 'wys. MW' }, { key: 'lo', label: 'nis. MW' }, { key: 'lor', label: 'log2' }]);
+  // flags
+  const fl = D.flags;
+  const c5 = card(grid, 'Flagi sędziów', 'Średnie MW w relacjach z flagą i bez.');
+  const rows = [
+    { f: 'tylko o stanie uwagi (no_discernable_thoughts)', n: fl.no_discernable.n, yes: fl.no_discernable.mw_yes, no: fl.no_discernable.mw_no },
+    { f: 'jawna deklaracja uwagi (has_attention_indicator)', n: fl.attention_indicator.n, yes: fl.attention_indicator.mw_yes, no: fl.attention_indicator.mw_no },
+  ];
+  const t = c5.append('table').attr('class', 'tv');
+  t.append('thead').append('tr').selectAll('th').data(['flaga', 'n', 'MW z flagą', 'MW bez']).join('th').text(d => d);
+  t.append('tbody').selectAll('tr').data(rows).join('tr').selectAll('td').data(r => [r.f, r.n, fmt(r.yes), fmt(r.no)]).join('td').text(d => d);
+  finding(c5, `Exp2, kolejność pytań (relacja przed skalami vs po): MW ${fmt(fl.recall_first.true)} vs ${fmt(fl.recall_first.false)}; bez różnicy.`);
+}
+
+// ===== 5. fragments browser
+{
+  const grid = section('frag', '5 · Fragmenty bajki i relacje', 'Kliknij fragment: tekst, MW w obu eksperymentach i wszystkie relacje posortowane po MW. Pod nagłówkiem filtr eksperymentu i próg MW.',
+    'To przeglądarka do własnych oczu. Relacje z wysokim MW to zwykle konkretne sprawy z życia (praca, egzamin, znajomi) albo komentarz do procedury („swędzi mnie twarz”, „krzyżyk”); przy niskim MW ludzie opowiadają fabułę lub mówią wprost „byłem skupiony”. Sonda i treść zgadzają się na tyle, że etykieta MW nadaje się na cel modelu.');
+  const wrap = d3.select(grid).append('div').attr('class', 'card').style('grid-column', '1 / -1');
+  const filt = wrap.append('div').attr('class', 'filters');
+  filt.append('label').html('Eksperyment <select id="fExp"><option value="">oba</option><option value="1">Exp1</option><option value="2">Exp2</option></select>');
+  filt.append('label').html('MW od <input id="fMw" type="range" min="0" max="99" value="0" style="width:120px"> <span id="fMwV">0</span>');
+  filt.append('label').html('Szukaj w relacji <input id="fQ" type="text" placeholder="np. mama, egzamin" style="width:180px">');
+  filt.append('span').attr('class', 'muted').attr('id', 'fCount');
+  const two = wrap.append('div').attr('class', 'two');
+  const left = two.append('div');
+  left.append('div').attr('class', 'muted').style('margin-bottom', '4px').html('trial · bohater · <b>MW średnie (0–99)</b> · ciekawość (Exp2)');
+  const list = left.append('div').attr('class', 'frag-list');
+  const right = two.append('div');
+  const storyBox = right.append('div');
+  const recBox = right.append('div').attr('class', 'recalls');
+  const maxMw = d3.max(D.fragments, f => f.mw_all);
+  let selTrial = 1;
+  const rowsSel = list.selectAll('div.frag').data(D.fragments).join('div').attr('class', 'frag').on('click', (ev, f) => { selTrial = f.trial; renderFrag(); });
+  rowsSel.append('span').attr('class', 'muted').text(f => f.trial);
+  rowsSel.append('span').attr('class', f => 'hero hero-' + f.hero[0]).text(f => f.hero === 'KAROLINA' ? 'KAR' : 'JAN');
+  rowsSel.append('div').attr('class', 'bar').style('width', f => (100 * f.mw_all / maxMw) + '%').attr('title', f => 'MW ' + fmt(f.mw_all));
+  rowsSel.append('span').attr('class', 'muted').style('text-align', 'right').text(f => fmt(f.mw_all, 0) + ' · ' + fmt(f.pref, 0));
+  hover(rowsSel, f => `<b>${f.trial}. ${f.fragment}</b><br>MW: ogółem ${fmt(f.mw_all)} · Exp1 ${fmt(f.mw_exp1)} (tracked ${fmt(f.mw_tracked)} / untracked ${fmt(f.mw_untracked)}) · Exp2 ${fmt(f.mw_exp2)}<br>ciekawość ${fmt(f.pref)} · relacji ${f.n_recalls} · śr. ${fmt(f.words, 0)} słów · sprzężenie ${fmt(f.coupling, 2)}`);
+  function renderFrag() {
+    rowsSel.classed('sel', f => f.trial === selTrial);
+    const f = D.fragments[selTrial - 1];
+    storyBox.html(`<h3>${f.trial}. ${f.fragment} <span class="pill">${f.story_words} słów</span> <span class="pill">MW Exp1 ${fmt(f.mw_exp1)} · Exp2 ${fmt(f.mw_exp2)}</span> <span class="pill">ciekawość ${fmt(f.pref)}</span></h3><div class="story">${f.story}</div>`);
+    const e = document.getElementById('fExp').value, mw = +document.getElementById('fMw').value, q = document.getElementById('fQ').value.trim().toLowerCase();
+    let rs = D.recalls.filter(r => r.t === selTrial && (!e || r.e === e) && r.mw >= mw && (!q || r.u.toLowerCase().includes(q)));
+    rs.sort((a, b) => b.mw - a.mw);
+    document.getElementById('fCount').textContent = `${rs.length} relacji`;
+    recBox.html('');
+    rs.forEach(r => {
+      const d = recBox.append('div').attr('class', 'recall');
+      d.append('div').attr('class', 'm').html(`<span class="mw">MW ${r.mw}</span><span class="mwbar"><i style="width:${r.mw}%"></i></span><span>${r.s} · Exp${r.e}${r.tr ? ' · ' + (r.tr === 'T' ? 'TRACKED' : 'UNTRACKED') : ''}${r.pref != null ? ' · ciekawość ' + r.pref : ''}</span><span>${r.w} słów · sprzężenie ${fmt(r.c, 2)}${r.nt ? ' · tylko o uwadze' : ''}${r.ai ? ' · deklaracja uwagi' : ''}</span>`);
+      d.append('div').text(r.u);
+    });
+  }
+  ['fExp', 'fMw', 'fQ'].forEach(id => document.getElementById(id).addEventListener('input', () => { document.getElementById('fMwV').textContent = document.getElementById('fMw').value; renderFrag(); }));
+  renderFrag();
+}
+
+// ===== 6. eye
+if (EYE) {
+  const grid = section('eye', '6 · Oko: pupila i mrugnięcia', 'Cechy z <code>gaze_preproc</code> (100 Hz, lewe oko, prawe jako zapas) policzone per trial i z-standaryzowane wewnątrz osoby. Trial z ponad 50 % brakujących próbek pupili jest pominięty w statystykach pupili.',
+    'Cechy oka uśrednione z całego fragmentu są słabe: pupila i mrugnięcia nie rozróżniają MW, a rozrzut spojrzenia tylko lekko (r = 0,09) i dopiero przy MW powyżej 50. Jeśli sygnał jest, siedzi w dynamice wewnątrz fragmentu, nie w średniej z 45 s. Detekcja ciągła musi więc pracować na oknach kilkusekundowych, a nie na trialu.');
+  const names = { pupil_mean: 'średnica pupili (śr.)', pupil_sd: 'zmienność pupili (SD)', gaze_sd: 'rozrzut spojrzenia (SD px)', blink_rate: 'mrugnięcia / min' };
+  // timecourse
+  const tc = EYE.timecourse;
+  const c = card(grid, 'Przebieg pupili w trialu: wysokie vs niskie MW', `Średnia z-pupila (1 Hz) w trialach z MW z > 0,5 (n = ${tc.high.n_trials}) i z < −0,5 (n = ${tc.low.n_trials}); pasmo ±1 SEM. Sekunda 0 = start fragmentu.`, { wide: true });
+  legend(c, [{ t: 'niskie MW (skupienie)', c: '--s1', line: true }, { t: 'wysokie MW (odpływanie)', c: '--s8', line: true }, { t: 'średnie', c: '--muted', line: true }]);
+  const f = frame(c.node(), 1160, 280, { l: 48, t: 10, r: 16, b: 44 });
+  const n = tc.high.mean.length;
+  const x = d3.scaleLinear().domain([0, n - 1]).range([0, f.w]);
+  const all = [...tc.high.mean, ...tc.low.mean, ...tc.mid.mean].filter(v => v != null);
+  const y = d3.scaleLinear().domain([d3.min(all) - 0.15, d3.max(all) + 0.15]).nice().range([f.h, 0]);
+  yGrid(f.g, y, f.w, 5); xAxis(f.g, x, f.h, d3.range(0, n, 5)); axisTitle(f.g, 'sekunda fragmentu', f.w, f.h, 'x'); axisTitle(f.g, 'pupila (z wewnątrz osoby)', f.w, f.h, 'y');
+  f.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f.w).attr('y1', y(0)).attr('y2', y(0)).attr('stroke-dasharray', null);
+  for (const [k, col, wdt] of [['mid', '--muted', 1.5], ['low', '--s1', 2], ['high', '--s8', 2]]) {
+    const pts = tc[k].mean.map((v, i) => ({ i, v, s: tc[k].sem[i] })).filter(p => p.v != null);
+    if (k !== 'mid') f.g.append('path').datum(pts).attr('fill', css(col)).attr('opacity', .13).attr('d', d3.area().x(p => x(p.i)).y0(p => y(p.v - p.s)).y1(p => y(p.v + p.s)).curve(d3.curveMonotoneX));
+    f.g.append('path').datum(pts).attr('fill', 'none').attr('stroke', css(col)).attr('stroke-width', wdt).attr('d', d3.line().x(p => x(p.i)).y(p => y(p.v)).curve(d3.curveMonotoneX));
+  }
+  const cross = f.g.append('line').attr('class', 'axis-line').attr('y1', 0).attr('y2', f.h).style('display', 'none');
+  f.g.append('rect').attr('width', f.w).attr('height', f.h).attr('fill', 'transparent').on('mousemove', ev => { const i = Math.round(x.invert(d3.pointer(ev)[0])); if (i < 0 || i >= n) return; cross.style('display', null).attr('x1', x(i)).attr('x2', x(i)); showTip(`<b>sekunda ${i}</b><br>niskie MW: ${fmt(tc.low.mean[i], 2)} ± ${fmt(tc.low.sem[i], 2)}<br>średnie: ${fmt(tc.mid.mean[i], 2)}<br>wysokie MW: ${fmt(tc.high.mean[i], 2)} ± ${fmt(tc.high.sem[i], 2)}`, ev); }).on('mouseleave', () => { cross.style('display', 'none'); hideTip(); });
+  const diff = d3.mean(d3.range(5, Math.min(45, n)), i => (tc.high.mean[i] ?? 0) - (tc.low.mean[i] ?? 0));
+  finding(c, `Średnia różnica wysokie − niskie w sekundach 5–45: <b>${fmt(diff, 2)} SD</b>. ${Math.abs(diff) < 0.1 ? 'Mała; pupila per trial słabo rozróżnia stany, to zgodne z literaturą (efekty rzędu 0,1–0,2 SD).' : 'Widoczny efekt kierunkowy.'} Uwaga: to porównanie między trialami tej samej osoby; dryf pupili w sesji może się mieszać z efektem czasu na zadaniu.`);
+  tableView(c, d3.range(n).map(i => ({ s: i, lo: tc.low.mean[i], mid: tc.mid.mean[i], hi: tc.high.mean[i] })), [{ key: 's', label: 'sekunda' }, { key: 'lo', label: 'niskie MW' }, { key: 'mid', label: 'średnie' }, { key: 'hi', label: 'wysokie MW' }]);
+
+  // features by MW bin
+  for (const k of Object.keys(names)) {
+    const w = EYE.within[k], cr = EYE.corr[k];
+    const c2 = card(grid, names[k] + ' vs MW', `Średnia z-cechy w przedziałach MW ±1 SEM. Korelacja z MW (z): r = ${fmt(cr.r, 3)} (n = ${cr.n}); wewnątrz osoby śr. r = ${fmt(w.mean_r, 3)}, ujemna u ${w.n_neg}/${w.n} osób.`);
+    const fb = EYE.by_mw;
+    const f2 = frame(c2.node(), 560, 200, { l: 52, t: 8, r: 8, b: 40 });
+    const x2 = d3.scaleBand().domain(fb.map(b => b.label)).range([0, f2.w]).paddingInner(0.35).paddingOuter(0.2);
+    const ext = d3.max(fb, b => Math.abs(b[k] ?? 0) + (b[k + '_sem'] ?? 0)) * 1.2 || 0.5;
+    const y2 = d3.scaleLinear().domain([-ext, ext]).nice().range([f2.h, 0]);
+    yGrid(f2.g, y2, f2.w, 4); f2.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f2.w).attr('y1', y2(0)).attr('y2', y2(0));
+    f2.g.append('g').selectAll('text').data(fb).join('text').attr('class', 'tick').attr('x', b => x2(b.label) + x2.bandwidth() / 2).attr('y', f2.h + 16).attr('text-anchor', 'middle').text(b => b.label);
+    axisTitle(f2.g, 'MW (sonda 0–99)', f2.w, f2.h, 'x'); axisTitle(f2.g, 'z', f2.w, f2.h, 'y');
+    const g = f2.g.append('g').selectAll('g').data(fb.filter(b => b[k] != null)).join('g');
+    g.append('rect').attr('x', b => x2(b.label)).attr('y', b => Math.min(y2(0), y2(b[k]))).attr('width', x2.bandwidth()).attr('height', b => Math.abs(y2(b[k]) - y2(0))).attr('rx', 3).attr('fill', css('--s1'));
+    g.append('line').attr('x1', b => x2(b.label) + x2.bandwidth() / 2).attr('x2', b => x2(b.label) + x2.bandwidth() / 2).attr('y1', b => y2(b[k] - b[k + '_sem'])).attr('y2', b => y2(b[k] + b[k + '_sem'])).attr('stroke', css('--ink')).attr('stroke-width', 1.5);
+    hover(g, b => `<b>MW ${b.label}</b> · n = ${b.n}<br>${names[k]}: z = ${fmt(b[k], 3)} ± ${fmt(b[k + '_sem'], 3)}`);
+    const tk = EYE.tracking[k];
+    const verdict = {
+      pupil_mean: 'Płasko do MW 75; spadek w przedziale 76–99 opiera się na 91 trialach i nie ma go w korelacji, więc nie traktuję go jako efektu.',
+      pupil_sd: 'Brak zależności w żadnym przedziale; zmienność pupili z całego trialu nie niesie informacji o MW.',
+      gaze_sd: 'Jedyna cecha z kierunkiem: przy MW powyżej 50 wzrok wyraźnie bardziej „ucieka” od krzyża, i tak samo w fragmentach UNTRACKED. Słaba, ale spójna z hipotezą odsprzężenia.',
+      blink_rate: 'Brak wyraźnego kierunku; lekki wzrost przy 51–75 nie utrzymuje się w najwyższym przedziale.',
+    }[k];
+    finding(c2, `<b>${verdict}</b> Exp1: tracked z = ${fmt(tk.TRACKED, 3)}, untracked z = ${fmt(tk.UNTRACKED, 3)}.`);
+    tableView(c2, w.per_subject, [{ key: 'id', label: 'ID' }, { key: 'r', label: 'r wewnątrz osoby' }]);
+  }
+  // missing data
+  const c3 = card(grid, 'Braki pupili per osoba', 'Udział próbek bez pupili (po preprocessingu). Zgodne z opisem danych: MAWA1105 ~60 %, MAPO1405 ~44 %.');
+  const ms = EYE.missing_by_subject;
+  const f3 = frame(c3.node(), 560, 220, { l: 44, t: 8, r: 8, b: 30 });
+  const x3 = d3.scaleBand().domain(ms.map(s => s.id)).range([0, f3.w]).paddingInner(0.2);
+  const y3 = d3.scaleLinear().domain([0, 1]).range([f3.h, 0]);
+  yGrid(f3.g, y3, f3.w, 4); f3.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f3.w).attr('y1', f3.h).attr('y2', f3.h);
+  axisTitle(f3.g, 'osoby, od największych braków', f3.w, f3.h, 'x'); axisTitle(f3.g, 'udział braków', f3.w, f3.h, 'y');
+  hover(f3.g.append('g').selectAll('rect').data(ms).join('rect').attr('x', s => x3(s.id)).attr('y', s => y3(s.missing)).attr('width', x3.bandwidth()).attr('height', s => f3.h - y3(s.missing)).attr('rx', 2).attr('fill', s => css(EXP[s.exp].c)), s => `<b>${s.id}</b> · ${EXP[s.exp].name}<br>braki: ${pct(s.missing)}`);
+  finding(c3, `<b>${ms.filter(s => s.missing > 0.25).length} osób ma ponad 25 % braków</b>, reszta poniżej 10 %. Do modelu na pupili te osoby trzeba wykluczyć albo ważyć; braki idą głównie z mrugnięć dłuższych niż 500 ms i z utraty śledzenia, nie z preprocessingu.`);
+  tableView(c3, ms, [{ key: 'id', label: 'ID' }, { key: 'exp', label: 'Exp' }, { key: 'missing', label: 'braki', f: pct }]);
+}
+
+// ===== 7. trial viewer
+{
+  const grid = section('viewer', '7 · Podgląd osoby: 40 triali', EYE ? 'Wybierz osobę i trial: pupila (1 Hz, surowe jednostki EyeLink), mrugnięcia (czerwone kreski), tekst fragmentu, relacja i sonda.' : 'Wybierz osobę: jej 40 sond MW, teksty i relacje.',
+    'Do oglądania pojedynczych przypadków. Osoby z dużymi skokami MW w sesji (np. DOKL1005, JAJA2108, JUBE1005) to najlepsi kandydaci, żeby sprawdzić gołym okiem, czy pupila lub mrugnięcia zmieniają się razem z sondą, zanim ktoś zbuduje na tym model.');
+  const wrap = d3.select(grid).append('div').attr('class', 'card').style('grid-column', '1 / -1');
+  const filt = wrap.append('div').attr('class', 'filters');
+  filt.append('label').html('Osoba <select id="vSub"></select>');
+  filt.append('label').html('Trial <select id="vTrial"></select>');
+  const subSel = d3.select('#vSub');
+  subSel.selectAll('option').data(D.subjects.slice().sort((a, b) => a.id.localeCompare(b.id))).join('option').attr('value', s => s.id).text(s => `${s.id} · ${s.exp === 'Exp1_Cued' ? 'Exp1' : 'Exp2'} · MW ${fmt(s.mean_mw, 0)}`);
+  d3.select('#vTrial').selectAll('option').data(D.fragments).join('option').attr('value', f => f.trial).text(f => `${f.trial} · ${f.fragment}`);
+  const mwRow = wrap.append('div');
+  const pupRow = wrap.append('div');
+  const txt = wrap.append('div').attr('class', 'two');
+  const story = txt.append('div'), rec = txt.append('div');
+  window.selectSubject = id => { subSel.property('value', id); render(); };
+  function render() {
+    const sid = subSel.property('value'), t = +d3.select('#vTrial').property('value');
+    const s = D.subjects.find(x => x.id === sid);
+    // MW across 40 trials, bars
+    mwRow.html('');
+    mwRow.append('h3').text(`${sid}: 40 sond MW`);
+    const f = frame(mwRow.node(), 1160, 150, { l: 44, t: 6, r: 8, b: 26 });
+    const x = d3.scaleBand().domain(d3.range(1, 41)).range([0, f.w]).paddingInner(0.2);
+    const y = d3.scaleLinear().domain([0, 100]).range([f.h, 0]);
+    yGrid(f.g, y, f.w, 4); f.g.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', f.w).attr('y1', f.h).attr('y2', f.h);
+    f.g.append('g').selectAll('text').data(d3.range(1, 41, 3)).join('text').attr('class', 'tick').attr('x', d => x(d) + x.bandwidth() / 2).attr('y', f.h + 14).attr('text-anchor', 'middle').text(d => d);
+    const bars = f.g.append('g').selectAll('rect').data(s.mw.map((v, i) => ({ t: i + 1, v, f: D.fragments[i] }))).join('rect').attr('x', d => x(d.t)).attr('y', d => y(d.v)).attr('width', x.bandwidth()).attr('height', d => f.h - y(d.v)).attr('rx', 2)
+      .attr('fill', d => css(heroC(d.f.hero))).attr('opacity', d => d.t === t ? 1 : 0.55).attr('stroke', d => d.t === t ? css('--ink') : 'none').style('cursor', 'pointer')
+      .on('click', (ev, d) => { d3.select('#vTrial').property('value', d.t); render(); });
+    hover(bars, d => `<b>trial ${d.t} · ${d.f.fragment}</b><br>MW ${d.v}${s.tracked_hero ? (d.f.hero === s.tracked_hero ? ' · TRACKED' : ' · UNTRACKED') : ''}`);
+    // pupil
+    pupRow.html('');
+    if (EYE) {
+      const key = `${sid}|${t}`, p = EYE.pupil_1hz[key], bl = EYE.blinks_1[key] || [], tf = EYE.trial_feats[key];
+      pupRow.append('h3').html(`Pupila, trial ${t}${tf ? ` <span class="pill">śr. ${tf.pm ?? '–'} (z = ${tf.pz ?? '–'})</span><span class="pill">braki ${pct(tf.miss)}</span><span class="pill">mrugnięć/min ${tf.br}</span><span class="pill">rozrzut spojrzenia ${tf.gsd} px</span>` : ''}`);
+      if (!p || p.every(v => v == null)) { pupRow.append('div').attr('class', 'muted').text('Brak danych pupili dla tego trialu.'); }
+      else {
+        legend(pupRow, [{ t: 'pupila (lewe oko, a.u.)', c: '--s1', line: true }, { t: 'mrugnięcie', c: '--s8' }]);
+        const f2 = frame(pupRow.node(), 1160, 200, { l: 56, t: 6, r: 8, b: 36 });
+        const x2 = d3.scaleLinear().domain([0, p.length - 1]).range([0, f2.w]);
+        const vals = p.filter(v => v != null);
+        const y2 = d3.scaleLinear().domain([d3.min(vals) * 0.97, d3.max(vals) * 1.03]).nice().range([f2.h, 0]);
+        yGrid(f2.g, y2, f2.w, 4); xAxis(f2.g, x2, f2.h, d3.range(0, p.length, 5)); axisTitle(f2.g, 'sekunda fragmentu', f2.w, f2.h, 'x');
+        f2.g.append('g').selectAll('rect').data(bl).join('rect').attr('x', b => x2(b[0])).attr('y', 0).attr('width', b => Math.max(1.5, x2(b[0] + b[1]) - x2(b[0]))).attr('height', f2.h).attr('fill', css('--s8')).attr('opacity', .35);
+        f2.g.append('path').datum(p.map((v, i) => ({ i, v }))).attr('fill', 'none').attr('stroke', css('--s1')).attr('stroke-width', 2).attr('d', d3.line().defined(d => d.v != null).x(d => x2(d.i)).y(d => y2(d.v)));
+        const cross = f2.g.append('line').attr('class', 'axis-line').attr('y1', 0).attr('y2', f2.h).style('display', 'none');
+        f2.g.append('rect').attr('width', f2.w).attr('height', f2.h).attr('fill', 'transparent').on('mousemove', ev => { const i = Math.round(x2.invert(d3.pointer(ev)[0])); if (i < 0 || i >= p.length) return; cross.style('display', null).attr('x1', x2(i)).attr('x2', x2(i)); showTip(`<b>sekunda ${i}</b><br>pupila ${p[i] ?? 'brak'}`, ev); }).on('mouseleave', () => { cross.style('display', 'none'); hideTip(); });
+      }
+    }
+    const fr = D.fragments[t - 1];
+    story.html(`<h3>${fr.trial}. ${fr.fragment} <span class="pill">${fr.hero}</span></h3><div class="story">${fr.story}</div>`);
+    const r = D.recalls.find(x => x.s === sid && x.t === t);
+    rec.html(`<h3>Relacja · MW ${s.mw[t - 1]}${r && r.tr ? ' · ' + (r.tr === 'T' ? 'TRACKED' : 'UNTRACKED') : ''}${r && r.pref != null ? ' · ciekawość ' + r.pref : ''}</h3>` + (r ? `<div class="story">${r.u}</div><div class="muted" style="margin-top:4px">${r.w} słów · sprzężenie z historią ${fmt(r.c, 2)} · odniesienia do siebie ${fmt(r.sr, 2)}${r.nt ? ' · tylko o uwadze' : ''}${r.ai ? ' · deklaracja uwagi' : ''}</div>` : '<div class="muted">brak relacji dla tego trialu</div>'));
+  }
+  ['vSub', 'vTrial'].forEach(id => document.getElementById(id).addEventListener('change', render));
+  subSel.property('value', 'ADNA2507'); render();
+}
+
+// ===== toc + theme
+d3.select('#toc').selectAll('a').data(sections).join('a').attr('href', s => '#' + s.id).text(s => s.title);
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const r = document.documentElement, cur = r.getAttribute('data-theme');
+  const dark = cur ? cur === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  try { localStorage.setItem('theme', dark ? 'light' : 'dark'); } catch (e) {}
+  location.reload();   // colors are read into SVG attributes at build time, so a theme change re-renders the page
+});
+</script>
+</body>
+</html>

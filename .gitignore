@@ -46,3 +46,7 @@ embeddings/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# --- Dashboard output and intermediates embed participant recalls ---
+drafts/*.html
+tools/dashboard/*.json
