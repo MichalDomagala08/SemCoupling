@@ -262,6 +262,207 @@ def interactive_pupil_plot(ScreenData, blinks, saccades, fixations, gazeCoords, 
 
 
 
+
+
+
+
+###############################
+### Viusalisation functions ###
+###############################
+
+
+
+
+
+###### ---- (1) Testng MW_estimate vs Tracking/Untracking ---- ######
+import statsmodels.api  as sm
+
+def plotTrialTrack(m, name, grand_df, ax, titl, paramNum=[0, 1, 2], anlysisName='Tracking',
+                   firstContrast='TRACKED', lastContrast='UNTRACKED', covariates=None):
+    """
+    Plots model-predicted lines over trials for two groups + observed trial means.
+    covariates: dict {parameter name: value} for the other predictors in the model,
+                e.g. {'LemmaLen': df['LemmaLen'].mean(), 'recallfirst[T.True]': df['recallfirst'].mean()}
+    """
+    from scipy.stats import t
+    covariates = covariates or {}
+    p = m.params
+
+    # --- predicted lines (other predictors held at the given values) ---
+    trialN   = np.arange(0, grand_df['trialNum'].max() + 1)
+    offset   = sum(p[k] * v for k, v in covariates.items())
+    line_ref = p.iloc[paramNum[0]] + p.iloc[paramNum[2]] * trialN + offset   # firstContrast
+    line_grp = line_ref + p.iloc[paramNum[1]]                                 # lastContrast
+
+    # --- 95% CI of the predicted mean ---
+    pnames = list(m.fe_params.index) if hasattr(m, 'fe_params') else list(p.index)
+    col    = {n: i for i, n in enumerate(pnames)}
+    Vbeta  = m.cov_params().loc[pnames, pnames].values
+    dfr    = getattr(m, 'df_resid', np.inf)
+    tval   = t.ppf(0.975, df=dfr) if np.isfinite(dfr) else 1.96
+    grp_param = 'Tracking[T.UNTRACKED]' if anlysisName == 'Tracking' else f'C({anlysisName})[T.{lastContrast}]'
+
+    def build_X(g):
+        X = np.zeros((len(trialN), len(pnames)))
+        X[:, col['Intercept']] = 1.0
+        if grp_param in col:  X[:, col[grp_param]] = g
+        if 'trialNum' in col: X[:, col['trialNum']] = trialN
+        for k, v in covariates.items():
+            if k in col: X[:, col[k]] = v
+        return X
+
+    X0, X1 = build_X(0.0), build_X(1.0)
+    se_ref = np.sqrt(np.einsum('ij,jk,ik->i', X0, Vbeta, X0))
+    se_grp = np.sqrt(np.einsum('ij,jk,ik->i', X1, Vbeta, X1))
+
+    # --- plot ---
+    means = grand_df.groupby([anlysisName, 'trialNum'])[name].mean()
+    ax.set_title(titl)
+    ax.plot(trialN, line_ref, color='blue',   label=f'Model: {anlysisName} = {firstContrast}')
+    ax.plot(trialN, line_grp, color='orange', label=f'Model: {anlysisName} = {lastContrast}')
+    ax.fill_between(trialN, line_ref - tval*se_ref, line_ref + tval*se_ref, color='mediumslateblue', alpha=0.25, label='95% CI')
+    ax.fill_between(trialN, line_grp - tval*se_grp, line_grp + tval*se_grp, color='moccasin',        alpha=0.25, label='95% CI')
+    ax.scatter(means.loc[firstContrast].index, means.loc[firstContrast], color='blue',   label=f'Trial mean ({firstContrast})')
+    ax.scatter(means.loc[lastContrast].index,  means.loc[lastContrast],  color='orange', label=f'Trial mean ({lastContrast})')
+    ax.set_xlabel("Trial Number"); ax.set_ylabel(name)
+    ax.legend()
+  
+
+####### (3) ---- MW vs Gaze ----- #######
+from scipy.stats import t
+
+def plot_continous_results(m,currentDf,x_name,response,ax,titl ="",group_param=None):
+
+    # --- 1) grid dla osi X ---
+    x_grid = np.linspace(currentDf[x_name].min(), currentDf[x_name].max(), 200)
+
+    # --- 2) fixed effects i ich kowariancja (FE only) ---
+    fe_names = list(m.fe_params.index)
+    V_fe = m.cov_params().loc[fe_names, fe_names].values
+    col = {name: i for i, name in enumerate(fe_names)}
+
+    # bezpieczeństwo: sprawdź, czy x_name jest w fe_names
+    if x_name not in fe_names:
+        raise KeyError(f"{x_name} not in fixed-effect names: {fe_names}")
+
+    # --- 3) budujemy macierz modelu Xg_base (intercept + x) ---
+    Xg_base = np.zeros((len(x_grid), len(fe_names)))
+    Xg_base[:, col.get('Intercept', 0)] = 1.0
+    Xg_base[:, col[x_name]] = x_grid
+
+    # --- 4) ustaw pozostałe predyktory (domyślnie na ich średnie) ---
+    import re
+    for pname in fe_names:
+        if pname in ('Intercept', x_name):
+            continue
+
+        # inny predictor: numeric -> mean if in DF, else 0
+        if pname in currentDf.columns:
+            Xg_base[:, col[pname]] = currentDf[pname].mean()
+        else:
+            Xg_base[:, col[pname]] = 0.0
+
+    # --- 5) TEMP FIX: wyciszamy wariancję Interceptu w macierzy użytej do CI (usuwa gigantyczne pasmo) ---
+    V_fe_fixed = V_fe.copy()
+
+
+    # --- 6) funkcja predykcja + SE ---
+    def predict_and_se(Xg):
+        beta_fe = m.fe_params.values
+        y_fit = Xg @ beta_fe
+        var_fit = np.einsum('ij,jk,ik->i', Xg, V_fe_fixed, Xg)
+        se_fit = np.sqrt(np.clip(var_fit, 0, np.inf))
+        return y_fit, se_fit
+
+    # --- 7) t-value dla 95% CI ---
+    tval = t.ppf(0.975, df=m.df_resid)
+    if not np.isfinite(tval):
+        tval = 1.96
+
+
+    # --- 8) Rysowanie ---
+    ax.set_title(titl)
+    ax.scatter(currentDf[x_name], currentDf[response], color='orange', alpha=0.6, s=25, label='Data')
+
+    if group_param in col and group_param is not None:
+        # rysujemy dwie linie: group=0 i group=1
+        for rval, color, lab in [(0, 'blue', f'{group_param}=0'), (1, 'orange', f'{group_param}=1')]:
+            Xg = Xg_base.copy()
+            Xg[:, col[group_param]] = rval
+            y_fit, se_fit = predict_and_se(Xg)
+            ax.plot(x_grid, y_fit, color=color, linestyle='--', linewidth=2, label=f'Fit ({lab})')
+            ax.fill_between(x_grid, y_fit - tval*se_fit, y_fit + tval*se_fit, color=color, alpha=0.18)
+    else:
+        # pojedyncza linia (kategorii trzymane na średnich)
+        y_fit, se_fit = predict_and_se(Xg_base)
+        ax.plot(x_grid, y_fit, 'b--', linewidth=2, label='Model fit (FE)')
+        ax.fill_between(x_grid, y_fit - tval*se_fit, y_fit + tval*se_fit, color='blue', alpha=0.18, label='95% CI')
+
+    ax.set_xlabel(x_name)
+    ax.set_ylabel(response)
+    ax.legend(loc='best')
+
+    # sensowne limity Y (oparte na danych, żeby nie dopuścić do ekstremalnych rozciągnięć)
+    y_min, y_max = currentDf[response].min(), currentDf[response].max()
+    pad = max(0.2, 0.05 * (y_max - y_min))
+    ax.set_ylim(y_min - pad, y_max + pad)
+
+
+
+
+def linearModelChecks(m,grand_df,formula =  "MW_Estimate ~ Tracking + trialNum"):
+    # trial-level diagnostics
+    resid   = m.resid                   # raw (conditional) residuals
+    fitted  = m.fittedvalues            # conditional fitted values
+    std_res = resid / np.sqrt(m.scale)  # ≈ studentised residuals
+    fig,axs = plt.subplots(2,1,figsize=(14, 8))
+    plt.suptitle("Checks for a Linear Model")
+
+    # (1) Homoscedascisity
+    axs[0].scatter(fitted, std_res, alpha=0.6, s=15,color='blue')
+    axs[0].axhline(0, linestyle='--',color='orange')
+    axs[0].set_xlabel("Fitted value")
+    axs[0].set_ylabel("Studentised residual")
+    axs[0].set_title("Residuals vs fitted")
+
+    # (2) 
+    sm.qqplot(std_res, line="45", fit=True, ax=axs[1])
+    axs[1].set_title("Normal Q–Q")
+
+    # (3) Colinearity:
+    from patsy import dmatrices
+
+    formula_fixed = formula  # your fixed part
+    y, X = dmatrices(formula_fixed, data=grand_df, return_type="dataframe")
+    from statsmodels.stats.outliers_influence import variance_inflation_factor
+
+    vif = pd.Series(
+        [variance_inflation_factor(X.values, i) for i in range(X.shape[1])],
+        index=X.columns
+    )
+    print(vif)
+
+     # Drop the intercept from display (its VIF is usually not meaningful)
+    vif_display = vif.drop('Intercept', errors='ignore')
+    
+    # Convert to multiline string
+    vif_text = "\n".join([f"{k}: {v:.2f}" for k, v in vif_display.items()])
+    vif_text = f"VIFs\n{vif_text}"
+
+    axs[1].text(
+        0.8, 0.5, vif_text,
+        transform=axs[1].transAxes,
+        verticalalignment='top',
+        fontsize=9,
+        bbox=dict(boxstyle="round,pad=0.4", facecolor="white", alpha=0.8)
+    )
+
+
+
+
+
+
+
 #####################
 ### UTILITIES ###
 #####################
